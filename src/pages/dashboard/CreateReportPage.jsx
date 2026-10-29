@@ -5,8 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowLeft, CheckCircle2, Upload, FileText, X } from 'lucide-react';
+import { useState, useRef } from 'react';
 
 export default function CreateReportPage() {
   const navigate = useNavigate();
@@ -16,11 +16,15 @@ export default function CreateReportPage() {
   const booking = getBookingById(bookingId);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [informConsentFile, setInformConsentFile] = useState(null);
+  const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
-    diagnosis: '',
-    treatment: '',
-    recommendations: '',
+    subjective: '',
+    objective: '',
+    assessment: '',
+    plan: '',
     nextAppointment: '',
+    notes: '',
   });
 
   if (!booking) {
@@ -50,11 +54,23 @@ export default function CreateReportPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setInformConsentFile(file);
+    }
+  };
+
+  const handleRemoveFile = () => {
+    setInformConsentFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.diagnosis || !formData.treatment) {
-      alert('Diagnosis dan treatment harus diisi');
+    if (!formData.subjective || !formData.assessment) {
+      alert('Subjective dan Assessment harus diisi');
       return;
     }
 
@@ -65,10 +81,13 @@ export default function CreateReportPage() {
       addReport({
         id: reportId,
         bookingId,
-        diagnosis: formData.diagnosis,
-        treatment: formData.treatment,
-        recommendations: formData.recommendations,
+        subjective: formData.subjective,
+        objective: formData.objective,
+        assessment: formData.assessment,
+        plan: formData.plan,
+        informConsent: informConsentFile ? informConsentFile.name : null,
         nextAppointment: formData.nextAppointment,
+        notes: formData.notes,
         createdAt: new Date().toISOString(),
       });
 
@@ -137,54 +156,137 @@ export default function CreateReportPage() {
           </Card>
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* SOAP Section */}
             <Card className="p-8">
+              <h2 className="text-lg font-semibold text-foreground mb-6 pb-3 border-b border-border">
+                Catatan SOAP
+              </h2>
               <div className="space-y-6">
+                {/* Subjective */}
                 <div>
-                  <Label htmlFor="diagnosis" className="text-foreground">
-                    Diagnosis <span className="text-destructive">*</span>
+                  <Label htmlFor="subjective" className="text-foreground font-medium">
+                    S — Subjective <span className="text-destructive">*</span>
                   </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    Keluhan utama pasien (apa yang dirasakan, lokasi, skala nyeri, durasi)
+                  </p>
                   <textarea
-                    id="diagnosis"
-                    name="diagnosis"
-                    placeholder="Masukkan diagnosis hasil pemeriksaan..."
-                    value={formData.diagnosis}
+                    id="subjective"
+                    name="subjective"
+                    placeholder="Contoh: Pasien mengeluh nyeri punggung bawah skala 6/10, sudah 3 hari, memburuk saat membungkuk..."
+                    value={formData.subjective}
                     onChange={handleInputChange}
-                    className="mt-2 w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                     required
                   />
                 </div>
 
+                {/* Objective */}
                 <div>
-                  <Label htmlFor="treatment" className="text-foreground">
-                    Tindakan/Terapi <span className="text-destructive">*</span>
+                  <Label htmlFor="objective" className="text-foreground font-medium">
+                    O — Objective
                   </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    Hasil pemeriksaan fisik, ROM, kekuatan otot, observasi terapis
+                  </p>
                   <textarea
-                    id="treatment"
-                    name="treatment"
-                    placeholder="Jelaskan tindakan dan terapi yang diberikan..."
-                    value={formData.treatment}
+                    id="objective"
+                    name="objective"
+                    placeholder="Contoh: ROM fleksi lumbal 60°, ekstensi 15°, SLR positif kanan, kekuatan otot core 3/5..."
+                    value={formData.objective}
                     onChange={handleInputChange}
-                    className="mt-2 w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                  />
+                </div>
+
+                {/* Assessment */}
+                <div>
+                  <Label htmlFor="assessment" className="text-foreground font-medium">
+                    A — Assessment <span className="text-destructive">*</span>
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    Diagnosis fisioterapi, analisis kondisi, dan perkembangan pasien
+                  </p>
+                  <textarea
+                    id="assessment"
+                    name="assessment"
+                    placeholder="Contoh: Low back pain kronik dengan kelemahan otot core, nyeri berkurang dari skala 8 menjadi 6..."
+                    value={formData.assessment}
+                    onChange={handleInputChange}
+                    className="w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                     required
                   />
                 </div>
 
+                {/* Plan */}
                 <div>
-                  <Label htmlFor="recommendations" className="text-foreground">
-                    Rekomendasi/Saran
+                  <Label htmlFor="plan" className="text-foreground font-medium">
+                    P — Plan
                   </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    Rencana tindakan, terapi, dan program latihan selanjutnya
+                  </p>
                   <textarea
-                    id="recommendations"
-                    name="recommendations"
-                    placeholder="Berikan rekomendasi untuk tindak lanjut pasien..."
-                    value={formData.recommendations}
+                    id="plan"
+                    name="plan"
+                    placeholder="Contoh: Lanjutkan TENS 20 menit, core stabilization exercise 3x seminggu, edukasi ergonomi..."
+                    value={formData.plan}
                     onChange={handleInputChange}
-                    className="mt-2 w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                    className="w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   />
                 </div>
+              </div>
+            </Card>
 
+            {/* Inform Consent & Schedule */}
+            <Card className="p-8">
+              <h2 className="text-lg font-semibold text-foreground mb-6 pb-3 border-b border-border">
+                Dokumen & Jadwal
+              </h2>
+              <div className="space-y-6">
+                {/* Upload Inform Consent */}
                 <div>
-                  <Label htmlFor="nextAppointment" className="text-foreground">
+                  <Label className="text-foreground font-medium">Upload Inform Consent</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    Upload dokumen persetujuan tindakan fisioterapi (PDF, JPG, PNG)
+                  </p>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleFileChange}
+                    className="hidden"
+                    id="informConsent"
+                  />
+                  {!informConsentFile ? (
+                    <label
+                      htmlFor="informConsent"
+                      className="mt-2 flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-input rounded-lg cursor-pointer bg-secondary/20 hover:bg-secondary/40 transition-colors"
+                    >
+                      <Upload className="h-6 w-6 text-muted-foreground mb-2" />
+                      <p className="text-sm text-muted-foreground">
+                        <span className="font-medium text-primary">Klik untuk upload</span> atau drag & drop
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG (maks. 5 MB)</p>
+                    </label>
+                  ) : (
+                    <div className="mt-2 flex items-center gap-3 p-4 border border-input rounded-lg bg-secondary/20">
+                      <FileText className="h-5 w-5 text-primary flex-shrink-0" />
+                      <span className="text-sm text-foreground truncate flex-1">{informConsentFile.name}</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveFile}
+                        className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* Next Appointment */}
+                <div>
+                  <Label htmlFor="nextAppointment" className="text-foreground font-medium">
                     Jadwal Kunjungan Berikutnya
                   </Label>
                   <Input
@@ -194,6 +296,24 @@ export default function CreateReportPage() {
                     value={formData.nextAppointment}
                     onChange={handleInputChange}
                     className="mt-2"
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <Label htmlFor="notes" className="text-foreground font-medium">
+                    Catatan Tambahan
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-0.5 mb-2">
+                    Informasi lain yang perlu dicatat untuk sesi berikutnya
+                  </p>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    placeholder="Catatan tambahan untuk terapis atau pasien..."
+                    value={formData.notes}
+                    onChange={handleInputChange}
+                    className="w-full min-h-20 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   />
                 </div>
               </div>

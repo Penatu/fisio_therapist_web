@@ -4,6 +4,7 @@ import { ProtectedRoute } from '@/components/protected-route';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
+import { OrderDetailTabs } from '@/components/order-detail-tabs';
 import { ArrowLeft, Clock, MapPin, Phone, MessageSquare, FileText } from 'lucide-react';
 import { useState } from 'react';
 
@@ -67,6 +68,8 @@ export default function OrderDetailPage() {
             <StatusBadge status={booking.status} />
           </div>
 
+          <OrderDetailTabs bookingId={booking.id} />
+
           <Card className="p-8 mb-6">
             <div className="flex gap-6 items-start">
               <img
@@ -87,9 +90,12 @@ export default function OrderDetailPage() {
                     <Clock className="h-4 w-4" />
                     {booking.scheduledTime}
                   </div>
-                  <div className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    {booking.location}
+                  <div className="flex items-start gap-2 text-muted-foreground">
+                    <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                    <div>
+                      <p className="text-xs">Alamat lengkap</p>
+                      <p className="mt-0.5 text-foreground">{booking.patientAddress || booking.location}</p>
+                    </div>
                   </div>
                 </div>
               </div>

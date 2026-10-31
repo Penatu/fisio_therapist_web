@@ -1,6 +1,38 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { API_ENDPOINTS } from '@/lib/endpoints';
 
 const AuthContext = createContext(undefined);
+
+function getErrorMessage(result, fallback) {
+  if (!result) return fallback;
+  if (typeof result === 'string') return result;
+  if (typeof result.message === 'string' && result.message) return result.message;
+  if (typeof result.errorServer === 'string' && result.errorServer) return result.errorServer;
+  if (typeof result.messageTitle === 'string' && result.messageTitle) return result.messageTitle;
+  if (typeof result.error === 'string' && result.error) return result.error;
+
+  if (result.errors && typeof result.errors === 'object') {
+    const first = Object.values(result.errors).flat().find(Boolean);
+    if (typeof first === 'string') return first;
+  }
+
+  return fallback;
+}
+
+function sessionFromLogin(email, result) {
+  const data = result?.data && typeof result.data === 'object' ? result.data : {};
+  const isVerified = Boolean(data.isVerified);
+
+  return {
+    id: data.code || email,
+    email: data.email || email,
+    code: data.code || '',
+    lang: data.Lang || '',
+    isVerified,
+    verificationStatus: isVerified ? 'pending' : 'not_verified',
+    token: data.token || '',
+  };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
@@ -50,36 +82,58 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('pendingAuth');
   };
 
-  const login = async (email, password) => {
-    if (email === 'terapis@demo.com' && password === 'password123') {
-      const testUser = {
-        id: 'demo-user',
-        email,
-        name: 'Fisioterapis Demo',
-        phone: '08123456789',
-        verificationStatus: 'pending',
-        practiceLocations: ['Jakarta Selatan'],
-        bankAccountName: 'Fisioterapis Demo',
-        bankAccountNumber: '1234567890',
-        bankName: 'Bank Central Asia',
-      };
-      setUser(testUser);
-      localStorage.setItem('user', JSON.stringify(testUser));
-      return;
+  const establishSession = (sessionUser) => {
+    setUser(sessionUser);
+    localStorage.setItem('user', JSON.stringify(sessionUser));
+    if (sessionUser?.token) {
+      localStorage.setItem('token', sessionUser.token);
     }
+  };
 
-    const storedUser = localStorage.getItem('user');
-    if (!storedUser) throw new Error('Email atau password salah');
+  const login = async (email, password) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
 
-    const storedUserObj = JSON.parse(storedUser);
-    if (storedUserObj.email !== email) throw new Error('Email atau password salah');
+    try {
+      const response = await fetch(API_ENDPOINTS.LOGIN, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+        signal: controller.signal,
+      });
 
-    setUser(storedUserObj);
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || result?.success === false || !result?.data?.token) {
+        const fallback = response.status === 404
+          ? 'Layanan login tidak ditemukan'
+          : 'Email atau password salah';
+        throw new Error(getErrorMessage(result, fallback));
+      }
+
+      const sessionUser = sessionFromLogin(email, result);
+      establishSession(sessionUser);
+      return sessionUser;
+    } catch (err) {
+      const message =
+        err.name === 'AbortError'
+          ? 'Permintaan ke server terlalu lama'
+          : err.message === 'Failed to fetch'
+            ? 'Tidak dapat terhubung ke server'
+            : err.message || 'Login gagal';
+      throw new Error(message);
+    } finally {
+      clearTimeout(timeoutId);
+    }
   };
 
   const logout = () => {
     setUser(null);
     localStorage.removeItem('user');
+    localStorage.removeItem('token');
   };
 
   const updateProfile = async (data) => {
@@ -99,6 +153,7 @@ export function AuthProvider({ children }) {
         login,
         register,
         verifyOtp,
+        establishSession,
         logout,
         updateProfile,
       }}

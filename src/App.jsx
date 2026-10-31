@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Header } from '@/components/header';
+import { Toaster } from '@/components/ui/toaster';
 import { useEffect } from 'react';
 
 import LoginPage from '@/pages/auth/LoginPage';
@@ -9,6 +10,7 @@ import VerifyOtpPage from '@/pages/auth/VerifyOtpPage';
 
 import OrdersPage from '@/pages/dashboard/OrdersPage';
 import OrderDetailPage from '@/pages/dashboard/OrderDetailPage';
+import MedicalHistoryPage from '@/pages/dashboard/MedicalHistoryPage';
 import CreateReportPage from '@/pages/dashboard/CreateReportPage';
 import ReportPage from '@/pages/dashboard/ReportPage';
 import ChatPage from '@/pages/dashboard/ChatPage';
@@ -58,6 +60,7 @@ function AppLayout() {
         <Route path="/auth/verify-otp" element={<VerifyOtpPage />} />
         <Route path="/dashboard/orders" element={<OrdersPage />} />
         <Route path="/dashboard/orders/:id" element={<OrderDetailPage />} />
+        <Route path="/dashboard/orders/:id/medical-history" element={<MedicalHistoryPage />} />
         <Route path="/dashboard/orders/:id/create-report" element={<CreateReportPage />} />
         <Route path="/dashboard/orders/:id/report" element={<ReportPage />} />
         <Route path="/dashboard/chat" element={<ChatPage />} />
@@ -77,6 +80,7 @@ export default function App() {
   return (
     <BrowserRouter>
       <AppLayout />
+      <Toaster />
     </BrowserRouter>
   );
 }

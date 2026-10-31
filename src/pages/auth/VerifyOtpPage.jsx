@@ -1,20 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import useVerifyOtp from './hooks/useVerifyOtp';
 
 export default function VerifyOtpPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { verifyOtp } = useAuth();
+  const { verifyOtp, error, loading, setError } = useVerifyOtp();
   const email = searchParams.get('email') || '';
 
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [timer, setTimer] = useState(120);
   const [canResend, setCanResend] = useState(false);
 
@@ -53,19 +52,25 @@ export default function VerifyOtpPage() {
     e.preventDefault();
     setError('');
 
+    if (!email) {
+      setError('Email tidak ditemukan');
+      return;
+    }
+
     if (otpCode.length !== 6) {
       setError('OTP harus 6 digit');
       return;
     }
 
     try {
-      setLoading(true);
-      await verifyOtp(email, otpCode);
-      navigate('/dashboard/complete-profile');
-    } catch (err) {
-      setError(err.message || 'Verifikasi OTP gagal');
-    } finally {
-      setLoading(false);
+      await verifyOtp({ email, otp: otpCode });
+      toast({
+        title: 'Verifikasi OTP berhasil',
+        description: 'Silakan login untuk melanjutkan.',
+      });
+      navigate('/auth/login');
+    } catch {
+      // Pesan error sudah diisi oleh hook.
     }
   };
 

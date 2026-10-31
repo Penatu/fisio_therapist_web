@@ -8,19 +8,64 @@ import { Card } from '@/components/ui/card';
 import { DocumentUpload } from '@/components/document-upload';
 import { LocationSelector } from '@/components/location-selector';
 import { ProtectedRoute } from '@/components/protected-route';
-import { CheckCircle2, Clock, FileCheck } from 'lucide-react';
+import { CheckCircle2, Clock, FileCheck, MapPin, Plus, Trash2 } from 'lucide-react';
+import useVerifyUserProfile from './hooks/useVerifyUserProfile';
+
+const createId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+const withId = (item) => ({ id: item.id || createId(), ...item });
+
+const emptyWork = () => ({
+  id: createId(),
+  workplace: '',
+  position: '',
+  startYear: '',
+  endYear: '',
+  description: '',
+});
+
+const emptyEducation = () => ({
+  id: createId(),
+  institution: '',
+  degree: '',
+  major: '',
+  startYear: '',
+  endYear: '',
+  ijazah: '',
+});
+
+const emptyTraining = () => ({
+  id: createId(),
+  name: '',
+  organizer: '',
+  year: '',
+  certificate: '',
+});
 
 export default function VerificationPage() {
   const { user, updateProfile } = useAuth();
+  const { verifyUserProfile, loading } = useVerifyUserProfile();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [locating, setLocating] = useState(false);
 
   const [formData, setFormData] = useState({
+    profilePicture: user?.profilePicture || '',
     ktp: user?.ktp || '',
     str: user?.str || '',
     sip: user?.sip || '',
-    ijazah: user?.ijazah || '',
+    ukomCertificate: user?.ukomCertificate || '',
+    workHistory: user?.workHistory?.length ? user.workHistory.map(withId) : [emptyWork()],
+    educationHistory: user?.educationHistory?.length
+      ? user.educationHistory.map(withId)
+      : [emptyEducation()],
+    trainings: user?.trainings?.length ? user.trainings.map(withId) : [emptyTraining()],
+    address: user?.address || '',
+    latitude: user?.latitude ?? '',
+    longitude: user?.longitude ?? '',
     practiceLocations: user?.practiceLocations || [],
     bankAccountName: user?.bankAccountName || '',
     bankAccountNumber: user?.bankAccountNumber || '',
@@ -36,11 +81,105 @@ export default function VerificationPage() {
     setFormData((prev) => ({ ...prev, [field]: file }));
   };
 
+  const handleImageUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setFormData((prev) => ({ ...prev, profilePicture: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const updateListItem = (field, id, key, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field].map((item) =>
+        item.id === id ? { ...item, [key]: value } : item
+      ),
+    }));
+  };
+
+  const addListItem = (field, factory) => {
+    setFormData((prev) => ({ ...prev, [field]: [...prev[field], factory()] }));
+  };
+
+  const removeListItem = (field, id) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: prev[field].filter((item) => item.id !== id),
+    }));
+  };
+
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Browser tidak mendukung geolokasi');
+      return;
+    }
+
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setFormData((prev) => ({
+          ...prev,
+          latitude: position.coords.latitude.toFixed(6),
+          longitude: position.coords.longitude.toFixed(6),
+        }));
+        setLocating(false);
+      },
+      () => {
+        setLocating(false);
+        alert('Gagal mengambil lokasi. Izinkan akses lokasi atau isi koordinat secara manual.');
+      }
+    );
+  };
+
   const validateForm = () => {
+    if (!formData.profilePicture) { alert('Foto profil harus diunggah'); return false; }
     if (!formData.ktp) { alert('KTP harus diunggah'); return false; }
     if (!formData.str) { alert('STR harus diunggah'); return false; }
     if (!formData.sip) { alert('SIP harus diunggah'); return false; }
-    if (!formData.ijazah) { alert('Ijazah harus diunggah'); return false; }
+    if (!formData.ukomCertificate) { alert('Sertifikat UKOM harus diunggah'); return false; }
+
+    const workItems = formData.workHistory.filter(
+      (item) => item.workplace.trim() || item.position.trim()
+    );
+    if (workItems.length === 0) { alert('Minimal satu riwayat pekerjaan'); return false; }
+    if (workItems.some((item) => !item.workplace.trim() || !item.position.trim())) {
+      alert('Nama tempat kerja dan jabatan pada riwayat pekerjaan harus diisi');
+      return false;
+    }
+
+    const educationItems = formData.educationHistory.filter(
+      (item) => item.institution.trim() || item.degree.trim() || item.ijazah
+    );
+    if (educationItems.length === 0) { alert('Minimal satu riwayat pendidikan'); return false; }
+    if (educationItems.some((item) => !item.institution.trim() || !item.degree.trim() || !item.ijazah)) {
+      alert('Institusi, jenjang, dan ijazah pada riwayat pendidikan harus diisi');
+      return false;
+    }
+
+    const trainingItems = formData.trainings.filter(
+      (item) => item.name.trim() || item.organizer.trim() || item.certificate
+    );
+    if (trainingItems.length === 0) { alert('Minimal satu pelatihan'); return false; }
+    if (trainingItems.some((item) => !item.name.trim() || !item.certificate)) {
+      alert('Nama pelatihan dan sertifikat harus diisi');
+      return false;
+    }
+
+    if (!formData.address.trim()) { alert('Alamat harus diisi'); return false; }
+    const latitude = Number(formData.latitude);
+    const longitude = Number(formData.longitude);
+    if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90) {
+      alert('Latitude tidak valid');
+      return false;
+    }
+    if (!Number.isFinite(longitude) || longitude < -180 || longitude > 180) {
+      alert('Longitude tidak valid');
+      return false;
+    }
+
     if (formData.practiceLocations.length === 0) { alert('Minimal pilih satu lokasi praktek'); return false; }
     if (!formData.bankAccountName || !formData.bankAccountNumber) { alert('Data bank harus lengkap'); return false; }
     return true;
@@ -54,20 +193,24 @@ export default function VerificationPage() {
     }
 
     try {
-      setLoading(true);
+      const result = await verifyUserProfile({
+        ...formData,
+        fullName: user?.name || user?.fullName || '',
+        phone: user?.phone || '',
+      });
       await updateProfile({
         ...formData,
+        latitude: Number(formData.latitude),
+        longitude: Number(formData.longitude),
         verificationStatus: 'pending',
+        onboardingCode: result?.data?.code,
       });
       setSubmitted(true);
       setTimeout(() => {
         navigate('/dashboard/orders');
       }, 2000);
     } catch (err) {
-      console.error(err);
-      alert('Pengajuan gagal');
-    } finally {
-      setLoading(false);
+      alert(err.message || 'Pengajuan gagal');
     }
   };
 
@@ -115,6 +258,52 @@ export default function VerificationPage() {
 
           <form onSubmit={handleSubmit} className="space-y-8">
             <Card className="p-8">
+              <h2 className="text-xl font-bold text-foreground mb-6">Foto Profil</h2>
+              <Label className="text-foreground mb-2 block">
+                Unggah Foto Profil <span className="text-destructive">*</span>
+              </Label>
+              <div className="flex items-end gap-4">
+                <div className="flex-shrink-0">
+                  {formData.profilePicture ? (
+                    <img
+                      src={formData.profilePicture}
+                      alt="Foto profil"
+                      className="h-20 w-20 rounded-full object-cover border-2 border-primary"
+                    />
+                  ) : (
+                    <div className="h-20 w-20 rounded-full bg-secondary border-2 border-dashed border-primary flex items-center justify-center">
+                      <span className="text-xs text-muted-foreground">Foto</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex flex-1 flex-col gap-2">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="px-4 py-2 rounded-lg border border-input bg-background text-foreground text-sm"
+                  />
+                  {formData.profilePicture && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="self-start"
+                      onClick={() =>
+                        setFormData((prev) => ({ ...prev, profilePicture: '' }))
+                      }
+                    >
+                      Hapus foto
+                    </Button>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Unggah foto wajah terbaru dengan latar yang jelas
+              </p>
+            </Card>
+
+            <Card className="p-8">
               <h2 className="text-xl font-bold text-foreground mb-6 flex items-center gap-2">
                 <FileCheck className="h-5 w-5" />
                 Dokumen Verifikasi
@@ -149,13 +338,307 @@ export default function VerificationPage() {
                 />
 
                 <DocumentUpload
-                  label="Ijazah"
-                  documentType="Ijazah Pendidikan"
-                  value={formData.ijazah}
-                  onChange={(file) => handleDocumentChange('ijazah', file)}
+                  label="Sertifikat UKOM"
+                  documentType="Sertifikat Uji Kompetensi"
+                  value={formData.ukomCertificate}
+                  onChange={(file) => handleDocumentChange('ukomCertificate', file)}
                   required
-                  helperText="Unggah scan atau foto ijazah terakhir Anda"
+                  helperText="Unggah sertifikat Uji Kompetensi (UKOM) yang masih berlaku"
                 />
+              </div>
+            </Card>
+
+            <Card className="p-8">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <h2 className="text-xl font-bold text-foreground">Riwayat Pekerjaan</h2>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addListItem('workHistory', emptyWork)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Tambah
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {formData.workHistory.map((item, index) => (
+                  <div key={item.id} className="rounded-lg border border-border p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground">
+                        Pekerjaan {index + 1}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeListItem('workHistory', item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Hapus
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <Label className="text-foreground">Tempat Kerja *</Label>
+                        <Input
+                          placeholder="Nama klinik atau rumah sakit"
+                          value={item.workplace}
+                          onChange={(e) =>
+                            updateListItem('workHistory', item.id, 'workplace', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Jabatan *</Label>
+                        <Input
+                          placeholder="Contoh: Fisioterapis"
+                          value={item.position}
+                          onChange={(e) =>
+                            updateListItem('workHistory', item.id, 'position', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Tahun Mulai</Label>
+                        <Input
+                          placeholder="2020"
+                          value={item.startYear}
+                          onChange={(e) =>
+                            updateListItem('workHistory', item.id, 'startYear', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Tahun Selesai</Label>
+                        <Input
+                          placeholder="2024 atau Sekarang"
+                          value={item.endYear}
+                          onChange={(e) =>
+                            updateListItem('workHistory', item.id, 'endYear', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-foreground">Deskripsi</Label>
+                      <textarea
+                        placeholder="Tugas atau bidang yang ditangani"
+                        value={item.description}
+                        onChange={(e) =>
+                          updateListItem('workHistory', item.id, 'description', e.target.value)
+                        }
+                        className="mt-2 flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                      />
+                    </div>
+                  </div>
+                ))}
+                {formData.workHistory.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada riwayat pekerjaan. Tambahkan minimal satu.
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-8">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <h2 className="text-xl font-bold text-foreground">Riwayat Pendidikan</h2>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addListItem('educationHistory', emptyEducation)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Tambah
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {formData.educationHistory.map((item, index) => (
+                  <div key={item.id} className="rounded-lg border border-border p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground">
+                        Pendidikan {index + 1}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeListItem('educationHistory', item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Hapus
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <Label className="text-foreground">Institusi *</Label>
+                        <Input
+                          placeholder="Nama kampus atau sekolah"
+                          value={item.institution}
+                          onChange={(e) =>
+                            updateListItem('educationHistory', item.id, 'institution', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Jenjang *</Label>
+                        <Input
+                          placeholder="D3, D4, S1, atau S2"
+                          value={item.degree}
+                          onChange={(e) =>
+                            updateListItem('educationHistory', item.id, 'degree', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Jurusan</Label>
+                        <Input
+                          placeholder="Fisioterapi"
+                          value={item.major}
+                          onChange={(e) =>
+                            updateListItem('educationHistory', item.id, 'major', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-foreground">Tahun Mulai</Label>
+                          <Input
+                            placeholder="2016"
+                            value={item.startYear}
+                            onChange={(e) =>
+                              updateListItem('educationHistory', item.id, 'startYear', e.target.value)
+                            }
+                            className="mt-2"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-foreground">Tahun Selesai</Label>
+                          <Input
+                            placeholder="2020"
+                            value={item.endYear}
+                            onChange={(e) =>
+                              updateListItem('educationHistory', item.id, 'endYear', e.target.value)
+                            }
+                            className="mt-2"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <DocumentUpload
+                      label="Ijazah"
+                      documentType="Ijazah Pendidikan"
+                      value={item.ijazah}
+                      onChange={(file) =>
+                        updateListItem('educationHistory', item.id, 'ijazah', file)
+                      }
+                      required
+                      helperText="Unggah scan atau foto ijazah untuk pendidikan ini"
+                    />
+                  </div>
+                ))}
+                {formData.educationHistory.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada riwayat pendidikan. Tambahkan minimal satu.
+                  </p>
+                )}
+              </div>
+            </Card>
+
+            <Card className="p-8">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <h2 className="text-xl font-bold text-foreground">Pelatihan</h2>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => addListItem('trainings', emptyTraining)}
+                >
+                  <Plus className="h-4 w-4" />
+                  Tambah
+                </Button>
+              </div>
+
+              <div className="space-y-4">
+                {formData.trainings.map((item, index) => (
+                  <div key={item.id} className="rounded-lg border border-border p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-foreground">
+                        Pelatihan {index + 1}
+                      </p>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeListItem('trainings', item.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Hapus
+                      </Button>
+                    </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div>
+                        <Label className="text-foreground">Nama Pelatihan *</Label>
+                        <Input
+                          placeholder="Nama pelatihan atau seminar"
+                          value={item.name}
+                          onChange={(e) =>
+                            updateListItem('trainings', item.id, 'name', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Penyelenggara</Label>
+                        <Input
+                          placeholder="Nama lembaga penyelenggara"
+                          value={item.organizer}
+                          onChange={(e) =>
+                            updateListItem('trainings', item.id, 'organizer', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-foreground">Tahun</Label>
+                        <Input
+                          placeholder="2024"
+                          value={item.year}
+                          onChange={(e) =>
+                            updateListItem('trainings', item.id, 'year', e.target.value)
+                          }
+                          className="mt-2"
+                        />
+                      </div>
+                    </div>
+                    <DocumentUpload
+                      label="Sertifikat Pelatihan"
+                      documentType="Sertifikat pelatihan"
+                      value={item.certificate}
+                      onChange={(file) =>
+                        updateListItem('trainings', item.id, 'certificate', file)
+                      }
+                      required
+                      helperText="Unggah sertifikat untuk pelatihan ini"
+                    />
+                  </div>
+                ))}
+                {formData.trainings.length === 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    Belum ada pelatihan. Tambahkan minimal satu.
+                  </p>
+                )}
               </div>
             </Card>
 
@@ -163,6 +646,61 @@ export default function VerificationPage() {
               <h2 className="text-xl font-bold text-foreground mb-6">Informasi Praktek</h2>
 
               <div className="space-y-6">
+                <div>
+                  <Label htmlFor="address" className="text-foreground">
+                    Alamat *
+                  </Label>
+                  <textarea
+                    id="address"
+                    name="address"
+                    placeholder="Alamat lengkap tempat tinggal atau praktik"
+                    value={formData.address}
+                    onChange={handleInputChange}
+                    className="mt-2 flex min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]"
+                  />
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div>
+                    <Label htmlFor="latitude" className="text-foreground">
+                      Latitude *
+                    </Label>
+                    <Input
+                      id="latitude"
+                      name="latitude"
+                      inputMode="decimal"
+                      placeholder="-6.200000"
+                      value={formData.latitude}
+                      onChange={handleInputChange}
+                      className="mt-2"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="longitude" className="text-foreground">
+                      Longitude *
+                    </Label>
+                    <Input
+                      id="longitude"
+                      name="longitude"
+                      inputMode="decimal"
+                      placeholder="106.816666"
+                      value={formData.longitude}
+                      onChange={handleInputChange}
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleGetLocation}
+                  disabled={locating}
+                >
+                  <MapPin className="h-4 w-4" />
+                  {locating ? 'Mengambil lokasi...' : 'Gunakan lokasi saat ini'}
+                </Button>
+
                 <LocationSelector
                   locations={formData.practiceLocations}
                   onChange={(locations) =>

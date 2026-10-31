@@ -27,16 +27,12 @@ export default function LoginPage() {
 
     try {
       setLoading(true);
-      await login(email, password);
+      const userData = await login(email, password);
 
-      const storedUser = localStorage.getItem('user');
-      if (storedUser) {
-        const userData = JSON.parse(storedUser);
-        if (userData.verificationStatus === 'not_verified') {
-          navigate('/dashboard/complete-profile');
-        } else {
-          navigate('/dashboard/orders');
-        }
+      if (userData?.verificationStatus === 'not_verified') {
+        navigate('/dashboard/complete-profile');
+      } else {
+        navigate('/dashboard/orders');
       }
     } catch (err) {
       setError(err.message || 'Login gagal');

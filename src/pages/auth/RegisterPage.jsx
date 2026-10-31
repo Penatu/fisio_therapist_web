@@ -1,19 +1,17 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
+import useRegister from './hooks/useRegerister';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
-  const { register } = useAuth();
+  const { register, error, loading, setError } = useRegister();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -46,13 +44,10 @@ export default function RegisterPage() {
     }
 
     try {
-      setLoading(true);
-      await register(email, password);
+      await register({ email, password });
       navigate(`/auth/verify-otp?email=${encodeURIComponent(email)}`);
-    } catch (err) {
-      setError(err.message || 'Registrasi gagal');
-    } finally {
-      setLoading(false);
+    } catch {
+      // Pesan error sudah diisi oleh hook.
     }
   };
 

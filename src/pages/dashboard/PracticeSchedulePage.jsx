@@ -3,8 +3,9 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import usePracticeSchedule from './hooks/usePracticeSchedule';
 
 const MONTHS = [
   'Januari',
@@ -40,26 +41,75 @@ const formatDateLabel = (key) => {
 
 export default function PracticeSchedulePage() {
   const { user, isLoading, updateProfile } = useAuth();
+  const { getPracticeSchedule, savePracticeSchedule, loading: scheduleLoading, error: loadError } =
+    usePracticeSchedule();
   const navigate = useNavigate();
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState({
     year: today.getFullYear(),
     month: today.getMonth(),
   });
-  const [hydrated, setHydrated] = useState(() => Boolean(user));
-  const [dates, setDates] = useState(() => normalizeDates(user?.practiceSchedule));
-
-  useEffect(() => {
-    if (!hydrated && user) {
-      setDates(normalizeDates(user.practiceSchedule));
-      setHydrated(true);
-    }
-  }, [hydrated, user]);
+  const [hydrated, setHydrated] = useState(false);
+  const [dates, setDates] = useState([]);
+  const [savedDates, setSavedDates] = useState([]);
+  const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
+  const userRef = useRef(user);
+  const updateProfileRef = useRef(updateProfile);
+  userRef.current = user;
+  updateProfileRef.current = updateProfile;
 
-  const savedDates = useMemo(() => normalizeDates(user?.practiceSchedule), [user?.practiceSchedule]);
+  const applySchedule = (schedule) => {
+    const nextDates = normalizeDates(schedule?.dates);
+    setDates(nextDates);
+    setSavedDates(nextDates);
+    setNotes(typeof schedule?.notes === 'string' ? schedule.notes : '');
+    return nextDates;
+  };
+
+  const loadSchedule = async () => {
+    try {
+      const schedule = await getPracticeSchedule();
+      const nextDates = applySchedule(schedule);
+      await updateProfileRef.current({ practiceSchedule: nextDates });
+    } catch {
+      // Banner error tetap tampil. Pilihan di kalender tidak ditimpa.
+    }
+  };
+
+  useEffect(() => {
+    if (isLoading) return undefined;
+
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const schedule = await getPracticeSchedule();
+        if (cancelled) return;
+        const nextDates = normalizeDates(schedule.dates);
+        setDates(nextDates);
+        setSavedDates(nextDates);
+        setNotes(typeof schedule.notes === 'string' ? schedule.notes : '');
+        await updateProfileRef.current({ practiceSchedule: nextDates });
+      } catch {
+        if (cancelled) return;
+        const fallback = normalizeDates(userRef.current?.practiceSchedule);
+        setDates(fallback);
+        setSavedDates(fallback);
+      } finally {
+        if (!cancelled) setHydrated(true);
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getPracticeSchedule, isLoading]);
+
   const dirty = savedDates.join('|') !== dates.join('|');
   const prefix = monthPrefix(cursor.year, cursor.month);
   const selectedThisMonth = dates.filter((key) => key.startsWith(prefix));
@@ -120,7 +170,12 @@ export default function PracticeSchedulePage() {
     setError('');
     setSuccess(false);
     try {
-      await updateProfile({ practiceSchedule: dates });
+      const schedule = await savePracticeSchedule({ dates, notes });
+      const nextDates = normalizeDates(schedule.dates);
+      setDates(nextDates);
+      setSavedDates(nextDates);
+      setNotes(typeof schedule.notes === 'string' ? schedule.notes : '');
+      await updateProfile({ practiceSchedule: nextDates });
       setSuccess(true);
     } catch (err) {
       setError(err.message || 'Gagal menyimpan jadwal');
@@ -165,6 +220,15 @@ export default function PracticeSchedulePage() {
             <div className="mb-6 flex gap-3 rounded-lg border border-green-200 bg-green-50 p-4 text-green-600 dark:border-green-800 dark:bg-green-950 dark:text-green-400">
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" />
               <p className="text-sm">Jadwal praktek berhasil disimpan</p>
+            </div>
+          )}
+
+          {loadError && (
+            <div className="mb-6 flex flex-col gap-3 rounded-lg bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <p>{loadError}</p>
+              <Button type="button" variant="outline" size="sm" onClick={loadSchedule} disabled={scheduleLoading}>
+                {scheduleLoading ? 'Memuat...' : 'Muat ulang'}
+              </Button>
             </div>
           )}
 
@@ -280,7 +344,7 @@ export default function PracticeSchedulePage() {
             <Button type="button" variant="outline" onClick={() => navigate('/dashboard/settings')}>
               Batal
             </Button>
-            <Button type="button" size="lg" onClick={handleSave} disabled={!dirty || saving}>
+            <Button type="button" size="lg" onClick={handleSave} disabled={!dirty || saving || scheduleLoading}>
               {saving ? 'Menyimpan...' : 'Simpan Jadwal'}
             </Button>
           </div>

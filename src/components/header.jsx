@@ -45,7 +45,10 @@ export function Header() {
               key={item.href}
               to={item.href}
               className={`transition-colors ${
-                pathname === item.href ? 'text-primary font-semibold' : 'text-muted-foreground hover:text-foreground'
+                pathname === item.href ||
+                (item.href === '/dashboard/settings' && pathname.startsWith('/dashboard/settings'))
+                  ? 'text-primary font-semibold'
+                  : 'text-muted-foreground hover:text-foreground'
               }`}
             >
               {item.label}

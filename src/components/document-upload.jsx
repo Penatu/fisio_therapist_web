@@ -9,12 +9,31 @@ export function DocumentUpload({
   documentType,
   value,
   onChange,
+  onUpload,
   required,
   helperText,
 }) {
   const [isDragging, setIsDragging] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState('');
 
-  const handleFileSelect = (file) => {
+  const handleFileSelect = async (file) => {
+    if (!file) return;
+
+    if (onUpload) {
+      try {
+        setUploading(true);
+        setUploadError('');
+        const url = await onUpload(file);
+        onChange(url);
+      } catch (err) {
+        setUploadError(err.message || 'Gagal mengunggah file');
+      } finally {
+        setUploading(false);
+      }
+      return;
+    }
+
     const reader = new FileReader();
     reader.onloadend = () => {
       onChange(reader.result);
@@ -44,7 +63,11 @@ export function DocumentUpload({
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
 
-      {!value ? (
+      {uploading ? (
+        <div className="rounded-lg border-2 border-dashed border-primary/50 bg-primary/5 p-6 text-center">
+          <p className="text-sm font-medium text-foreground">Mengunggah file...</p>
+        </div>
+      ) : !value ? (
         <div
           onDragOver={() => setIsDragging(true)}
           onDragLeave={() => setIsDragging(false)}
@@ -91,6 +114,10 @@ export function DocumentUpload({
             </Button>
           </div>
         </div>
+      )}
+
+      {uploadError && (
+        <p className="text-xs text-destructive mt-2">{uploadError}</p>
       )}
 
       {helperText && (

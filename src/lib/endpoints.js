@@ -5,4 +5,6 @@ export const API_ENDPOINTS = {
   REGISTER: `${API_URL}/therapist/register`,
   VERIFY_OTP: `${API_URL}/therapist/verify-otp`,
   VERIFY_USER_PROFILE: `${API_URL}/therapist/onboarding`,
+  UPLOAD_FILE: `${API_URL}/therapist/upload`,
+  GET_USER_PROFILE: `${API_URL}/therapist/onboarding`,
 };

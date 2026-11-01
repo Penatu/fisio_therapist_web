@@ -18,6 +18,8 @@ import ChatRoomPage from '@/pages/dashboard/ChatRoomPage';
 import PaymentsPage from '@/pages/dashboard/PaymentsPage';
 import MonthlyPaymentDetailPage from '@/pages/dashboard/MonthlyPaymentDetailPage';
 import SettingsPage from '@/pages/dashboard/SettingsPage';
+import ProfilePage from '@/pages/dashboard/ProfilePage';
+import PracticeSchedulePage from '@/pages/dashboard/PracticeSchedulePage';
 import VerificationPage from '@/pages/dashboard/VerificationPage';
 import CompleteProfilePage from '@/pages/dashboard/CompleteProfilePage';
 
@@ -68,6 +70,8 @@ function AppLayout() {
         <Route path="/dashboard/payments" element={<PaymentsPage />} />
         <Route path="/dashboard/payments/:month" element={<MonthlyPaymentDetailPage />} />
         <Route path="/dashboard/settings" element={<SettingsPage />} />
+        <Route path="/dashboard/settings/profile" element={<ProfilePage />} />
+        <Route path="/dashboard/settings/schedule" element={<PracticeSchedulePage />} />
         <Route path="/dashboard/verification" element={<VerificationPage />} />
         <Route path="/dashboard/complete-profile" element={<CompleteProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

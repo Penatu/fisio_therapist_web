@@ -1,6 +1,6 @@
 import { cn } from '@/lib/utils';
 
-export function StatusBadge({ status, className }) {
+export function StatusBadge({ status, label, className }) {
   const statusConfig = {
     not_verified: {
       label: 'Belum Diverifikasi',
@@ -40,12 +40,17 @@ export function StatusBadge({ status, className }) {
     },
   };
 
-  const config = statusConfig[status];
+  const config = statusConfig[status] || {
+    label: status || 'Tidak diketahui',
+    bg: 'bg-secondary',
+    text: 'text-muted-foreground',
+    dot: 'bg-muted-foreground',
+  };
 
   return (
     <div className={cn('inline-flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium', config.bg, config.text, className)}>
       <span className={cn('h-2 w-2 rounded-full', config.dot)}></span>
-      {config.label}
+      {label || config.label}
     </div>
   );
 }

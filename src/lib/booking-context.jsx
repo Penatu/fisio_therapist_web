@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
 
 const BookingContext = createContext(undefined);
 
@@ -76,6 +76,25 @@ export function BookingProvider({ children }) {
     return bookings.find((b) => b.id === id);
   };
 
+  const replaceBookings = useCallback((nextBookings) => {
+    const list = Array.isArray(nextBookings) ? nextBookings : [];
+    setBookings(list);
+    localStorage.setItem('bookings', JSON.stringify(list));
+  }, []);
+
+  const upsertBooking = useCallback((booking) => {
+    if (!booking?.id) return;
+    setBookings((current) => {
+      const index = current.findIndex((item) => item.id === booking.id);
+      const next =
+        index === -1
+          ? [...current, booking]
+          : current.map((item, itemIndex) => (itemIndex === index ? { ...item, ...booking } : item));
+      localStorage.setItem('bookings', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   const addReport = (report) => {
     const updated = [...reports, report];
     setReports(updated);
@@ -94,6 +113,8 @@ export function BookingProvider({ children }) {
         addBooking,
         updateBooking,
         getBookingById,
+        replaceBookings,
+        upsertBooking,
         addReport,
         getReportsByBookingId,
       }}

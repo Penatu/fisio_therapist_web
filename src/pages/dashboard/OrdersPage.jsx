@@ -5,11 +5,41 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 import { Clock, MapPin, Phone, MessageSquare, CheckCircle2, ShieldCheck, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import useGetOrderList from './hooks/useGetOrderList';
 
 export default function OrdersPage() {
-  const { bookings } = useBooking();
+  const { replaceBookings } = useBooking();
+  const { orders, loading, error, getOrderList } = useGetOrderList();
   const [filter, setFilter] = useState('all');
+
+  const loadOrders = async () => {
+    try {
+      const list = await getOrderList();
+      replaceBookings(list);
+    } catch {
+      // Pesan error ditampilkan dari hook.
+    }
+  };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const list = await getOrderList();
+        if (!cancelled) replaceBookings(list);
+      } catch {
+        // Pesan error ditampilkan dari hook.
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [getOrderList, replaceBookings]);
 
   const verificationStatus = 'not_submitted';
 
@@ -33,15 +63,15 @@ export default function OrdersPage() {
   const statusDisplay = getVerificationStatusDisplay();
   const StatusIcon = statusDisplay.icon;
 
-  const filteredBookings = bookings.filter((booking) => {
+  const filteredBookings = orders.filter((booking) => {
     if (filter === 'all') return true;
     return booking.status === filter;
   });
 
   const stats = {
-    new: bookings.filter((b) => b.status === 'new').length,
-    processing: bookings.filter((b) => b.status === 'processing').length,
-    completed: bookings.filter((b) => b.status === 'completed').length,
+    new: orders.filter((b) => b.status === 'new').length,
+    processing: orders.filter((b) => b.status === 'processing').length,
+    completed: orders.filter((b) => b.status === 'completed').length,
   };
 
   return (
@@ -90,6 +120,15 @@ export default function OrdersPage() {
             </Card>
           </div>
 
+          {error && (
+            <div className="mb-6 flex flex-col gap-3 rounded-lg bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <p>{error}</p>
+              <Button type="button" variant="outline" size="sm" onClick={loadOrders} disabled={loading}>
+                {loading ? 'Memuat...' : 'Muat ulang'}
+              </Button>
+            </div>
+          )}
+
           <div className="mb-6 flex gap-2 overflow-x-auto pb-2">
             {['all', 'new', 'processing', 'completed'].map((f) => (
               <Button
@@ -107,7 +146,11 @@ export default function OrdersPage() {
           </div>
 
           <div className="space-y-4">
-            {filteredBookings.length > 0 ? (
+            {loading && orders.length === 0 ? (
+              <Card className="p-12 text-center">
+                <p className="text-muted-foreground">Memuat orderan...</p>
+              </Card>
+            ) : filteredBookings.length > 0 ? (
               filteredBookings.map((booking) => (
                 <Card key={booking.id} className="p-6 hover:shadow-lg transition-shadow">
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
@@ -120,24 +163,25 @@ export default function OrdersPage() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3 flex-wrap">
                           <div>
-                            <h3 className="font-semibold text-foreground">{booking.patientName}</h3>
-                            <p className="text-sm text-muted-foreground mt-1">{booking.service}</p>
+                            <h3 className="font-semibold text-foreground">{booking.patientName || 'Pasien'}</h3>
+                            <p className="text-xs text-muted-foreground mt-1">ID: {booking.id}</p>
+                            <p className="text-sm text-muted-foreground mt-1">{booking.service || 'Layanan belum diisi'}</p>
                           </div>
-                          <StatusBadge status={booking.status} />
+                          <StatusBadge status={booking.status} label={booking.statusLabel} />
                         </div>
 
                         <div className="mt-3 space-y-1 text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            {booking.scheduledTime}
+                            <Clock className="h-4 w-4 shrink-0" />
+                            <span>{booking.scheduledTime || 'Jadwal belum diisi'}</span>
+                          </div>
+                          <div className="flex items-start gap-2">
+                            <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{booking.patientAddress || booking.location || 'Alamat belum diisi'}</span>
                           </div>
                           <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            {booking.location}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4" />
-                            {booking.patientPhone}
+                            <Phone className="h-4 w-4 shrink-0" />
+                            <span>{booking.patientPhone || 'Nomor belum diisi'}</span>
                           </div>
                         </div>
 
@@ -152,7 +196,7 @@ export default function OrdersPage() {
 
                     <div className="flex flex-col sm:flex-col-reverse gap-2 w-full sm:w-auto">
                       {booking.status === 'completed' && booking.reportId && (
-                        <Link to={`/dashboard/orders/${booking.id}`}>
+                        <Link to={`/dashboard/orders/${booking.id}/report`}>
                           <Button variant="outline" className="w-full sm:w-auto bg-transparent">
                             Lihat Laporan
                           </Button>
@@ -160,12 +204,19 @@ export default function OrdersPage() {
                       )}
 
                       {booking.status === 'processing' && (
-                        <Link to={`/dashboard/chat/room/${booking.id}`}>
-                          <Button className="w-full sm:w-auto gap-2">
-                            <MessageSquare className="h-4 w-4" />
-                            Chat
-                          </Button>
-                        </Link>
+                        <>
+                          <Link to={`/dashboard/orders/${booking.id}/create-report`}>
+                            <Button variant="outline" className="w-full sm:w-auto bg-transparent">
+                              Buat Laporan
+                            </Button>
+                          </Link>
+                          <Link to={`/dashboard/chat/room/${booking.id}`}>
+                            <Button className="w-full sm:w-auto gap-2">
+                              <MessageSquare className="h-4 w-4" />
+                              Chat
+                            </Button>
+                          </Link>
+                        </>
                       )}
 
                       <Link to={`/dashboard/orders/${booking.id}`}>

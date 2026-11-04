@@ -6,15 +6,47 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 import { OrderDetailTabs } from '@/components/order-detail-tabs';
 import { ArrowLeft, Clock, MapPin, Phone, MessageSquare, FileText } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import useGetOrderDetail from './hooks/useGetOrderDetail';
 
 export default function OrderDetailPage() {
   const navigate = useNavigate();
   const { id: bookingId } = useParams();
-  const { getBookingById, updateBooking } = useBooking();
+  const { getBookingById, updateBooking, upsertBooking } = useBooking();
+  const { order, loading, error, getOrderDetail } = useGetOrderDetail();
+  const [accepting, setAccepting] = useState(false);
+  const upsertRef = useRef(upsertBooking);
+  upsertRef.current = upsertBooking;
 
-  const booking = getBookingById(bookingId);
-  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const detail = await getOrderDetail(bookingId);
+        if (!cancelled) upsertRef.current(detail);
+      } catch {
+        // Pesan error ditampilkan dari hook.
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId, getOrderDetail]);
+
+  const booking = order || getBookingById(bookingId);
+
+  const loadDetail = async () => {
+    try {
+      const detail = await getOrderDetail(bookingId);
+      upsertBooking(detail);
+    } catch {
+      // Pesan error ditampilkan dari hook.
+    }
+  };
 
   if (!booking) {
     return (
@@ -29,8 +61,17 @@ export default function OrderDetailPage() {
               Kembali
             </button>
 
+            {error && (
+              <div className="mb-6 flex flex-col gap-3 rounded-lg bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+                <p>{error}</p>
+                <Button type="button" variant="outline" size="sm" onClick={loadDetail} disabled={loading}>
+                  {loading ? 'Memuat...' : 'Muat ulang'}
+                </Button>
+              </div>
+            )}
+
             <Card className="p-12 text-center">
-              <p className="text-muted-foreground">Orderan tidak ditemukan</p>
+              <p className="text-muted-foreground">{loading ? 'Memuat detail orderan...' : 'Orderan tidak ditemukan'}</p>
             </Card>
           </div>
         </main>
@@ -40,11 +81,11 @@ export default function OrderDetailPage() {
 
   const handleAcceptOrder = async () => {
     try {
-      setLoading(true);
-      updateBooking(bookingId, { status: 'processing' });
+      setAccepting(true);
+      updateBooking(booking.id, { status: 'processing' });
       navigate('/dashboard/orders');
     } finally {
-      setLoading(false);
+      setAccepting(false);
     }
   };
 
@@ -60,12 +101,21 @@ export default function OrderDetailPage() {
             Kembali
           </button>
 
+          {error && (
+            <div className="mb-6 flex flex-col gap-3 rounded-lg bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <p>{error}</p>
+              <Button type="button" variant="outline" size="sm" onClick={loadDetail} disabled={loading}>
+                {loading ? 'Memuat...' : 'Muat ulang'}
+              </Button>
+            </div>
+          )}
+
           <div className="flex items-start justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">Detail Orderan</h1>
               <p className="text-muted-foreground">ID: {booking.id}</p>
             </div>
-            <StatusBadge status={booking.status} />
+            <StatusBadge status={booking.status} label={booking.statusLabel} />
           </div>
 
           <OrderDetailTabs bookingId={booking.id} />
@@ -94,7 +144,10 @@ export default function OrderDetailPage() {
                     <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                     <div>
                       <p className="text-xs">Alamat lengkap</p>
-                      <p className="mt-0.5 text-foreground">{booking.patientAddress || booking.location}</p>
+                      <p className="mt-0.5 text-foreground">{booking.patientAddress || '-'}</p>
+                      {booking.location && booking.location !== booking.patientAddress && (
+                        <p className="mt-0.5 text-foreground">{booking.location}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -107,8 +160,15 @@ export default function OrderDetailPage() {
             <div className="space-y-4">
               <div>
                 <p className="text-sm text-muted-foreground">Jenis Layanan</p>
-                <p className="text-lg font-semibold text-foreground">{booking.service}</p>
+                <p className="text-lg font-semibold text-foreground">{booking.service || '-'}</p>
               </div>
+
+              {booking.paymentLabel && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Status Pembayaran</p>
+                  <p className="text-lg font-semibold text-foreground">{booking.paymentLabel}</p>
+                </div>
+              )}
 
               {booking.notes && (
                 <div>
@@ -125,11 +185,11 @@ export default function OrderDetailPage() {
             {booking.status === 'new' && (
               <Button
                 onClick={handleAcceptOrder}
-                disabled={loading}
+                disabled={accepting}
                 size="lg"
                 className="flex-1"
               >
-                {loading ? 'Memproses...' : 'Terima Orderan'}
+                {accepting ? 'Memproses...' : 'Terima Orderan'}
               </Button>
             )}
 

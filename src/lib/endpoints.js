@@ -8,4 +8,6 @@ export const API_ENDPOINTS = {
   UPLOAD_FILE: `${API_URL}/therapist/upload`,
   GET_USER_PROFILE: `${API_URL}/therapist/onboarding`,
   PRACTICE_SCHEDULE: `${API_URL}/therapist/schedules`,
+  GET_ORDER_LIST: `${API_URL}/therapist/booking/list`,
+  GET_ORDER_DETAIL: `${API_URL}/therapist/booking/detail/:code`,
 };

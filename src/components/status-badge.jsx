@@ -26,8 +26,14 @@ export function StatusBadge({ status, label, className }) {
       text: 'text-blue-700 dark:text-blue-300',
       dot: 'bg-blue-500',
     },
+    confirmed: {
+      label: 'Di Konfirmasi',
+      bg: 'bg-sky-50 dark:bg-sky-950',
+      text: 'text-sky-700 dark:text-sky-300',
+      dot: 'bg-sky-500',
+    },
     processing: {
-      label: 'Diproses',
+      label: 'Proses Visit',
       bg: 'bg-purple-50 dark:bg-purple-950',
       text: 'text-purple-700 dark:text-purple-300',
       dot: 'bg-purple-500',
@@ -37,6 +43,12 @@ export function StatusBadge({ status, label, className }) {
       bg: 'bg-emerald-50 dark:bg-emerald-950',
       text: 'text-emerald-700 dark:text-emerald-300',
       dot: 'bg-emerald-500',
+    },
+    cancelled: {
+      label: 'Dibatalkan',
+      bg: 'bg-red-50 dark:bg-red-950',
+      text: 'text-red-700 dark:text-red-300',
+      dot: 'bg-red-500',
     },
   };
 

@@ -133,7 +133,7 @@ export default function ReportPage() {
 
             {report.nextAppointment && (
               <div className="mb-8">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Jadwal Kunjungan Berikutnya</h2>
+                <h2 className="text-lg font-semibold text-foreground mb-4">Waktu Kunjungan</h2>
                 <p className="font-medium text-foreground">
                   {new Date(report.nextAppointment).toLocaleDateString('id-ID', {
                     weekday: 'long',

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { API_ENDPOINTS } from '@/lib/endpoints';
 
 function getErrorMessage(result, fallback) {
@@ -21,6 +21,14 @@ function textValue(value) {
   if (value == null) return '';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   return '';
+}
+
+const PAID_STATUSES = ['paid', 'lunas'];
+
+export function isOrderPaid(order) {
+  const status = String(order?.paymentStatus || '').trim().toLowerCase();
+  const label = String(order?.paymentLabel || '').trim().toLowerCase();
+  return PAID_STATUSES.includes(status) || PAID_STATUSES.includes(label);
 }
 
 function fileUrl(value) {
@@ -53,9 +61,11 @@ function formatSchedule(value) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-const NEW_STATUSES = ['new', 'baru', 'pending', 'waiting', 'booked', 'created', 'unconfirmed', 'requested'];
-const PROCESSING_STATUSES = ['processing', 'process', 'in_progress', 'inprogress', 'ongoing', 'accepted', 'confirmed', 'diproses'];
+const NEW_STATUSES = ['new', 'baru', 'pending', 'waiting', 'booked', 'created', 'unconfirmed', 'requested', 'orderan_baru'];
+const CONFIRMED_STATUSES = ['confirmed', 'confirm', 'accepted', 'dikonfirmasi', 'di_konfirmasi', 'konfirmasi'];
+const VISIT_STATUSES = ['processing', 'process', 'in_progress', 'inprogress', 'ongoing', 'diproses', 'proses_visit', 'visit', 'visiting', 'on_visit'];
 const COMPLETED_STATUSES = ['completed', 'complete', 'done', 'finished', 'finish', 'selesai'];
+const CANCELLED_STATUSES = ['cancelled', 'canceled', 'cancel', 'dibatalkan', 'rejected'];
 
 export function mapOrderStatus(value) {
   const raw = String(value || '')
@@ -65,9 +75,10 @@ export function mapOrderStatus(value) {
 
   if (!raw) return 'new';
   if (NEW_STATUSES.includes(raw)) return 'new';
-  if (PROCESSING_STATUSES.includes(raw)) return 'processing';
+  if (CONFIRMED_STATUSES.includes(raw)) return 'confirmed';
+  if (VISIT_STATUSES.includes(raw)) return 'processing';
   if (COMPLETED_STATUSES.includes(raw)) return 'completed';
-  if (raw === 'new' || raw === 'processing' || raw === 'completed') return raw;
+  if (CANCELLED_STATUSES.includes(raw)) return 'cancelled';
   return raw;
 }
 
@@ -131,8 +142,10 @@ export function mapOrder(item, index) {
       ) || [textValue(item?.date), textValue(item?.time)].filter(Boolean).join(', '),
     status: mapOrderStatus(item?.status || item?.orderStatus || item?.bookingStatus),
     statusLabel: textValue(item?.statusLabel),
-    paymentStatus: textValue(item?.paymentStatus),
-    paymentLabel: textValue(item?.paymentLabel),
+    paymentStatus: textValue(
+      item?.paymentStatus || item?.payment_status || item?.payment?.status || item?.payment?.paymentStatus,
+    ),
+    paymentLabel: textValue(item?.paymentLabel || item?.payment?.label || item?.payment?.paymentLabel),
     notes: textValue(item?.notes || item?.note || item?.complaint || item?.description),
     reportId: textValue(item?.reportId || item?.report?.id),
   };
@@ -144,7 +157,13 @@ export function mapOrderList(result) {
     .map(mapOrder);
 }
 
-async function requestOrderList() {
+function orderListUrl(status) {
+  const url = new URL(API_ENDPOINTS.GET_ORDER_LIST);
+  if (status) url.searchParams.set('status', status);
+  return url.toString();
+}
+
+async function requestOrderList(status) {
   const token = localStorage.getItem('token');
   if (!token) {
     throw new Error('Sesi login tidak ditemukan. Silakan login kembali.');
@@ -154,7 +173,7 @@ async function requestOrderList() {
   const timeoutId = setTimeout(() => controller.abort(), 20000);
 
   try {
-    const response = await fetch(API_ENDPOINTS.GET_ORDER_LIST, {
+    const response = await fetch(orderListUrl(status), {
       method: 'GET',
       headers: {
         Accept: 'application/json',
@@ -183,22 +202,25 @@ const useGetOrderList = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const requestId = useRef(0);
 
-  const getOrderList = useCallback(async () => {
+  const getOrderList = useCallback(async (status = '') => {
+    const currentRequest = requestId.current + 1;
+    requestId.current = currentRequest;
     setLoading(true);
     setError('');
 
     try {
-      const result = await requestOrderList();
+      const result = await requestOrderList(status);
       const mapped = mapOrderList(result);
-      setOrders(mapped);
+      if (requestId.current === currentRequest) setOrders(mapped);
       return mapped;
     } catch (err) {
       const message = err.message || 'Gagal memuat orderan';
-      setError(message);
+      if (requestId.current === currentRequest) setError(message);
       throw new Error(message);
     } finally {
-      setLoading(false);
+      if (requestId.current === currentRequest) setLoading(false);
     }
   }, []);
 

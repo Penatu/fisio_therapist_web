@@ -10,4 +10,7 @@ export const API_ENDPOINTS = {
   PRACTICE_SCHEDULE: `${API_URL}/therapist/schedules`,
   GET_ORDER_LIST: `${API_URL}/therapist/booking/list`,
   GET_ORDER_DETAIL: `${API_URL}/therapist/booking/detail/:code`,
+  CALNCEL_ORDER: `${API_URL}/booking/cancel/:code`,
+  CONFIRM_ORDER: `${API_URL}/booking/confirm/:code`,
+  VISIT_ORDER: `${API_URL}/booking/visit/:code`,
 };

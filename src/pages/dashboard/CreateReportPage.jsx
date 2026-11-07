@@ -1,12 +1,13 @@
-import { useBooking } from '@/lib/booking-context';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ProtectedRoute } from '@/components/protected-route';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ArrowLeft, CheckCircle2, Upload, FileText, X } from 'lucide-react';
-import { useState, useRef } from 'react';
+import { useBooking } from "@/lib/booking-context";
+import { isOrderPaid } from "./hooks/useGetOrderList";
+import { useNavigate, useParams } from "react-router-dom";
+import { ProtectedRoute } from "@/components/protected-route";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft, CheckCircle2, Upload, FileText, X } from "lucide-react";
+import { useState, useRef } from "react";
 
 export default function CreateReportPage() {
   const navigate = useNavigate();
@@ -19,12 +20,13 @@ export default function CreateReportPage() {
   const [informConsentFile, setInformConsentFile] = useState(null);
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
-    subjective: '',
-    objective: '',
-    assessment: '',
-    plan: '',
-    nextAppointment: '',
-    notes: '',
+    subjective: "",
+    objective: "",
+    assessment: "",
+    plan: "",
+    visitDate: "",
+    visitTime: "",
+    notes: "",
   });
 
   if (!booking) {
@@ -49,6 +51,29 @@ export default function CreateReportPage() {
     );
   }
 
+  if (!isOrderPaid(booking)) {
+    return (
+      <ProtectedRoute>
+        <main className="min-h-screen bg-gradient-to-br from-background to-secondary/20 py-8">
+          <div className="mx-auto max-w-4xl px-4">
+            <button
+              onClick={() => navigate(-1)}
+              className="mb-6 inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Kembali
+            </button>
+
+            <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+              Laporan hanya bisa dibuat setelah pasien membayar. bantu ingatkan
+              pasien untuk membayar.
+            </div>
+          </div>
+        </main>
+      </ProtectedRoute>
+    );
+  }
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
@@ -63,14 +88,19 @@ export default function CreateReportPage() {
 
   const handleRemoveFile = () => {
     setInformConsentFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (!isOrderPaid(booking)) {
+      alert("Laporan hanya bisa dibuat setelah pasien membayar.");
+      return;
+    }
+
     if (!formData.subjective || !formData.assessment) {
-      alert('Subjective dan Assessment harus diisi');
+      alert("Subjective dan Assessment harus diisi");
       return;
     }
 
@@ -86,19 +116,22 @@ export default function CreateReportPage() {
         assessment: formData.assessment,
         plan: formData.plan,
         informConsent: informConsentFile ? informConsentFile.name : null,
-        nextAppointment: formData.nextAppointment,
+        nextAppointment:
+          formData.visitDate && formData.visitTime
+            ? `${formData.visitDate}T${formData.visitTime}`
+            : formData.visitDate,
         notes: formData.notes,
         createdAt: new Date().toISOString(),
       });
 
       updateBooking(bookingId, {
-        status: 'completed',
+        status: "completed",
         reportId,
       });
 
       setSubmitted(true);
       setTimeout(() => {
-        navigate('/dashboard/orders');
+        navigate("/dashboard/orders");
       }, 2000);
     } finally {
       setLoading(false);
@@ -113,11 +146,15 @@ export default function CreateReportPage() {
             <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-950 mb-4">
               <CheckCircle2 className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-2xl font-bold text-foreground mb-2">Laporan Berhasil Dibuat!</h2>
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              Laporan Berhasil Dibuat!
+            </h2>
             <p className="text-muted-foreground mb-4">
               Laporan pemeriksaan telah disimpan dan orderan ditandai selesai.
             </p>
-            <p className="text-sm text-muted-foreground">Mengalihkan ke daftar orderan...</p>
+            <p className="text-sm text-muted-foreground">
+              Mengalihkan ke daftar orderan...
+            </p>
           </Card>
         </main>
       </ProtectedRoute>
@@ -137,20 +174,28 @@ export default function CreateReportPage() {
           </button>
 
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-foreground mb-2">Buat Laporan Pemeriksaan</h1>
-            <p className="text-muted-foreground">Pasien: {booking.patientName}</p>
+            <h1 className="text-3xl font-bold text-foreground mb-2">
+              Buat Laporan Pemeriksaan
+            </h1>
+            <p className="text-muted-foreground">
+              Pasien: {booking.patientName}
+            </p>
           </div>
 
           <Card className="p-6 mb-8 bg-secondary/30">
             <div className="flex gap-4 items-center">
               <img
-                src={booking.patientImage || '/placeholder.png'}
+                src={booking.patientImage || "/placeholder.png"}
                 alt={booking.patientName}
                 className="h-12 w-12 rounded-full object-cover"
               />
               <div>
-                <p className="font-semibold text-foreground">{booking.patientName}</p>
-                <p className="text-sm text-muted-foreground">{booking.service}</p>
+                <p className="font-semibold text-foreground">
+                  {booking.patientName}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {booking.service}
+                </p>
               </div>
             </div>
           </Card>
@@ -164,11 +209,15 @@ export default function CreateReportPage() {
               <div className="space-y-6">
                 {/* Subjective */}
                 <div>
-                  <Label htmlFor="subjective" className="text-foreground font-medium">
+                  <Label
+                    htmlFor="subjective"
+                    className="text-foreground font-medium"
+                  >
                     S — Subjective <span className="text-destructive">*</span>
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                    Keluhan utama pasien (apa yang dirasakan, lokasi, skala nyeri, durasi)
+                    Keluhan utama pasien (apa yang dirasakan, lokasi, skala
+                    nyeri, durasi)
                   </p>
                   <textarea
                     id="subjective"
@@ -183,11 +232,15 @@ export default function CreateReportPage() {
 
                 {/* Objective */}
                 <div>
-                  <Label htmlFor="objective" className="text-foreground font-medium">
+                  <Label
+                    htmlFor="objective"
+                    className="text-foreground font-medium"
+                  >
                     O — Objective
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                    Hasil pemeriksaan fisik, ROM, kekuatan otot, observasi terapis
+                    Hasil pemeriksaan fisik, ROM, kekuatan otot, observasi
+                    terapis
                   </p>
                   <textarea
                     id="objective"
@@ -201,11 +254,15 @@ export default function CreateReportPage() {
 
                 {/* Assessment */}
                 <div>
-                  <Label htmlFor="assessment" className="text-foreground font-medium">
+                  <Label
+                    htmlFor="assessment"
+                    className="text-foreground font-medium"
+                  >
                     A — Assessment <span className="text-destructive">*</span>
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                    Diagnosis fisioterapi, analisis kondisi, dan perkembangan pasien
+                    Diagnosis fisioterapi, analisis kondisi, dan perkembangan
+                    pasien
                   </p>
                   <textarea
                     id="assessment"
@@ -246,9 +303,12 @@ export default function CreateReportPage() {
               <div className="space-y-6">
                 {/* Upload Inform Consent */}
                 <div>
-                  <Label className="text-foreground font-medium">Upload Inform Consent</Label>
+                  <Label className="text-foreground font-medium">
+                    Upload Inform Consent
+                  </Label>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-2">
-                    Upload dokumen persetujuan tindakan fisioterapi (PDF, JPG, PNG)
+                    Upload dokumen persetujuan tindakan fisioterapi (PDF, JPG,
+                    PNG)
                   </p>
                   <input
                     ref={fileInputRef}
@@ -265,14 +325,21 @@ export default function CreateReportPage() {
                     >
                       <Upload className="h-6 w-6 text-muted-foreground mb-2" />
                       <p className="text-sm text-muted-foreground">
-                        <span className="font-medium text-primary">Klik untuk upload</span> atau drag & drop
+                        <span className="font-medium text-primary">
+                          Klik untuk upload
+                        </span>{" "}
+                        atau drag & drop
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">PDF, JPG, PNG (maks. 5 MB)</p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PDF, JPG, PNG (maks. 5 MB)
+                      </p>
                     </label>
                   ) : (
                     <div className="mt-2 flex items-center gap-3 p-4 border border-input rounded-lg bg-secondary/20">
                       <FileText className="h-5 w-5 text-primary flex-shrink-0" />
-                      <span className="text-sm text-foreground truncate flex-1">{informConsentFile.name}</span>
+                      <span className="text-sm text-foreground truncate flex-1">
+                        {informConsentFile.name}
+                      </span>
                       <button
                         type="button"
                         onClick={handleRemoveFile}
@@ -286,22 +353,51 @@ export default function CreateReportPage() {
 
                 {/* Next Appointment */}
                 <div>
-                  <Label htmlFor="nextAppointment" className="text-foreground font-medium">
-                    Jadwal Kunjungan Berikutnya
+                  <Label className="text-foreground font-medium">
+                    Waktu Kunjungan
                   </Label>
-                  <Input
-                    id="nextAppointment"
-                    name="nextAppointment"
-                    type="datetime-local"
-                    value={formData.nextAppointment}
-                    onChange={handleInputChange}
-                    className="mt-2"
-                  />
+                  <div className="mt-2 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div>
+                      <Label
+                        htmlFor="visitDate"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Tanggal
+                      </Label>
+                      <Input
+                        id="visitDate"
+                        name="visitDate"
+                        type="date"
+                        value={formData.visitDate}
+                        onChange={handleInputChange}
+                        className="mt-2"
+                      />
+                    </div>
+                    <div>
+                      <Label
+                        htmlFor="visitTime"
+                        className="text-sm text-muted-foreground"
+                      >
+                        Jam
+                      </Label>
+                      <Input
+                        id="visitTime"
+                        name="visitTime"
+                        type="time"
+                        value={formData.visitTime}
+                        onChange={handleInputChange}
+                        className="mt-2"
+                      />
+                    </div>
+                  </div>
                 </div>
 
                 {/* Notes */}
                 <div>
-                  <Label htmlFor="notes" className="text-foreground font-medium">
+                  <Label
+                    htmlFor="notes"
+                    className="text-foreground font-medium"
+                  >
                     Catatan Tambahan
                   </Label>
                   <p className="text-xs text-muted-foreground mt-0.5 mb-2">
@@ -327,11 +423,8 @@ export default function CreateReportPage() {
               >
                 Batal
               </Button>
-              <Button
-                type="submit"
-                disabled={loading}
-              >
-                {loading ? 'Memproses...' : 'Simpan Laporan'}
+              <Button type="submit" disabled={loading}>
+                {loading ? "Memproses..." : "Simpan Laporan"}
               </Button>
             </div>
           </form>

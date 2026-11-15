@@ -8,15 +8,20 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, CheckCircle2, Upload, FileText, X } from "lucide-react";
 import { useState, useRef } from "react";
+import useUploadReportConsent from "./hooks/useUploadReportConsent";
+import useFinishOrder, { buildFinishPayload } from "./hooks/useFinishOrder";
 
 export default function CreateReportPage() {
   const navigate = useNavigate();
   const { id: bookingId } = useParams();
   const { getBookingById, updateBooking, addReport } = useBooking();
+  const { uploadConsent } = useUploadReportConsent();
+  const { finishOrder } = useFinishOrder();
 
   const booking = getBookingById(bookingId);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState("");
   const [informConsentFile, setInformConsentFile] = useState(null);
   const fileInputRef = useRef(null);
   const [formData, setFormData] = useState({
@@ -24,6 +29,8 @@ export default function CreateReportPage() {
     objective: "",
     assessment: "",
     plan: "",
+    supportingExamination: "",
+    evidenceBasedPractice: "",
     visitDate: "",
     visitTime: "",
     notes: "",
@@ -100,32 +107,31 @@ export default function CreateReportPage() {
     }
 
     if (!formData.subjective || !formData.assessment) {
-      alert("Subjective dan Assessment harus diisi");
+      setSubmitError("Subjective dan Assessment harus diisi");
       return;
     }
 
     try {
       setLoading(true);
+      setSubmitError("");
+
+      const informedConsent = informConsentFile ? await uploadConsent(informConsentFile) : null;
+      const payload = buildFinishPayload({ formData, informedConsent });
+      await finishOrder(booking.id, payload);
 
       const reportId = Date.now().toString();
       addReport({
         id: reportId,
         bookingId,
-        subjective: formData.subjective,
-        objective: formData.objective,
-        assessment: formData.assessment,
-        plan: formData.plan,
-        informConsent: informConsentFile ? informConsentFile.name : null,
-        nextAppointment:
-          formData.visitDate && formData.visitTime
-            ? `${formData.visitDate}T${formData.visitTime}`
-            : formData.visitDate,
-        notes: formData.notes,
+        ...payload,
+        nextAppointment: payload.visitDateTime,
+        notes: payload.additionalNotes,
         createdAt: new Date().toISOString(),
       });
 
       updateBooking(bookingId, {
         status: "completed",
+        statusLabel: "Selesai",
         reportId,
       });
 
@@ -133,6 +139,8 @@ export default function CreateReportPage() {
       setTimeout(() => {
         navigate("/dashboard/orders");
       }, 2000);
+    } catch (err) {
+      setSubmitError(err.message || "Gagal menyimpan laporan");
     } finally {
       setLoading(false);
     }
@@ -292,6 +300,32 @@ export default function CreateReportPage() {
                     className="w-full min-h-24 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
                   />
                 </div>
+
+                <div>
+                  <Label htmlFor="supportingExamination" className="text-foreground font-medium">
+                    Pemeriksaan Penunjang
+                  </Label>
+                  <textarea
+                    id="supportingExamination"
+                    name="supportingExamination"
+                    value={formData.supportingExamination}
+                    onChange={handleInputChange}
+                    className="mt-2 w-full min-h-20 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="evidenceBasedPractice" className="text-foreground font-medium">
+                    Evidence Based Practice
+                  </Label>
+                  <textarea
+                    id="evidenceBasedPractice"
+                    name="evidenceBasedPractice"
+                    value={formData.evidenceBasedPractice}
+                    onChange={handleInputChange}
+                    className="mt-2 w-full min-h-20 rounded-lg border border-input bg-background px-4 py-2 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                  />
+                </div>
               </div>
             </Card>
 
@@ -414,6 +448,12 @@ export default function CreateReportPage() {
                 </div>
               </div>
             </Card>
+
+            {submitError && (
+              <div className="rounded-lg bg-destructive/10 p-4 text-sm text-destructive">
+                {submitError}
+              </div>
+            )}
 
             <div className="flex gap-4">
               <Button

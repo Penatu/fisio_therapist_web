@@ -17,6 +17,7 @@ import ChatPage from '@/pages/dashboard/ChatPage';
 import ChatRoomPage from '@/pages/dashboard/ChatRoomPage';
 import PaymentsPage from '@/pages/dashboard/PaymentsPage';
 import MonthlyPaymentDetailPage from '@/pages/dashboard/MonthlyPaymentDetailPage';
+import NotificationsPage from '@/pages/dashboard/NotificationsPage';
 import SettingsPage from '@/pages/dashboard/SettingsPage';
 import ProfilePage from '@/pages/dashboard/ProfilePage';
 import PracticeSchedulePage from '@/pages/dashboard/PracticeSchedulePage';
@@ -67,6 +68,7 @@ function AppLayout() {
         <Route path="/dashboard/orders/:id/report" element={<ReportPage />} />
         <Route path="/dashboard/chat" element={<ChatPage />} />
         <Route path="/dashboard/chat/room/:id" element={<ChatRoomPage />} />
+        <Route path="/dashboard/notifications" element={<NotificationsPage />} />
         <Route path="/dashboard/payments" element={<PaymentsPage />} />
         <Route path="/dashboard/payments/:month" element={<MonthlyPaymentDetailPage />} />
         <Route path="/dashboard/settings" element={<SettingsPage />} />

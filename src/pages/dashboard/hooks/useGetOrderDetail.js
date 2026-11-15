@@ -18,6 +18,53 @@ function getErrorMessage(result, fallback) {
   return fallback;
 }
 
+function textValue(value) {
+  if (value == null) return '';
+  if (typeof value === 'string' || typeof value === 'number') return String(value);
+  return '';
+}
+
+function mapInformedConsent(record) {
+  const consent =
+    record?.informedConsent && typeof record.informedConsent === 'object' ? record.informedConsent : {};
+  const name = textValue(consent.name || consent.fileName || record?.informedConsentName);
+  const url = textValue(
+    consent.fullUrl || consent.url || consent.path || record?.informedConsentUrl,
+  );
+
+  if (!name && !url) return null;
+  return { name, url };
+}
+
+export function mapMedicalRecords(source) {
+  const list = Array.isArray(source)
+    ? source
+    : source?.medicalRecords || source?.medical_records || source?.medicalHistory;
+
+  if (!Array.isArray(list)) return [];
+
+  return list
+    .filter((record) => record && typeof record === 'object')
+    .map((record, index) => ({
+      id: record.id ?? `record-${index}`,
+      bookingCode: textValue(record.bookingCode || record.booking_code),
+      date: textValue(record.date),
+      visitDate: textValue(record.visitDate || record.visit_date || record.visitDateTime),
+      medicalRecordNumber: textValue(
+        record.medicalRecordNumber || record.medical_record_number || record.recordNumber,
+      ),
+      subjective: textValue(record.subjective),
+      objective: textValue(record.objective),
+      assessment: textValue(record.assessment),
+      plan: textValue(record.plan),
+      supportingExamination: textValue(record.supportingExamination),
+      evidenceBasedPractice: textValue(record.evidenceBasedPractice),
+      additionalNotes: textValue(record.additionalNotes || record.notes),
+      informedConsent: mapInformedConsent(record),
+      createdAt: textValue(record.createdAt),
+    }));
+}
+
 export function mapOrderDetail(result, code) {
   const data = result?.data ?? result;
   if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
@@ -29,6 +76,7 @@ export function mapOrderDetail(result, code) {
   return {
     ...mapped,
     id: mapped.id && mapped.id !== 'order-0' ? mapped.id : code,
+    medicalRecords: mapMedicalRecords(item.medicalRecords || item.medical_records || data.medicalRecords),
   };
 }
 

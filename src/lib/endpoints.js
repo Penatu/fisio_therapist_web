@@ -1,5 +1,7 @@
 const API_URL = "http://76.13.23.68:8990/api/v1";
 
+export const SOCKET_BASE_URL = API_URL.replace(/\/api\/v1\/?$/, "");
+
 export const API_ENDPOINTS = {
   LOGIN: `${API_URL}/auth-user/login/therapist`,
   REGISTER: `${API_URL}/therapist/register`,
@@ -13,4 +15,8 @@ export const API_ENDPOINTS = {
   CALNCEL_ORDER: `${API_URL}/booking/cancel/:code`,
   CONFIRM_ORDER: `${API_URL}/booking/confirm/:code`,
   VISIT_ORDER: `${API_URL}/booking/visit/:code`,
+  UPLOAD_REPORT_CONSENT: `${API_URL}/booking/report/upload`,
+  FINISH_ORDER: `${API_URL}/booking/finish/:code`,
+  GET_CHAT_ROOM: `${API_URL}/therapist/booking/chat-room`,
+  GET_CHAT_HISTORY: `${API_URL}/chat/history`,
 };

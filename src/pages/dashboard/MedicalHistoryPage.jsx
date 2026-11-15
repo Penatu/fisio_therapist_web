@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useBooking } from '@/lib/booking-context';
-import { getMedicalHistoryRecords } from '@/lib/medical-history';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ProtectedRoute } from '@/components/protected-route';
 import { OrderDetailTabs } from '@/components/order-detail-tabs';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 import { ArrowLeft, ChevronRight, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
+import useGetOrderDetail from './hooks/useGetOrderDetail';
 
 function HistoryField({ label, value }) {
   if (!value) return null;
@@ -20,7 +21,24 @@ function HistoryField({ label, value }) {
   );
 }
 
+function consentHref(url) {
+  if (!url) return '';
+  if (/^https?:\/\//i.test(url)) return url;
+  return '';
+}
+
+function recordTitle(record) {
+  return record.medicalRecordNumber || record.bookingCode || 'Rekam Medis';
+}
+
+function recordSummary(record) {
+  return record.subjective || record.assessment || record.plan || 'Tidak ada ringkasan';
+}
+
 function HistoryDetailDialog({ record, patientName, onClose }) {
+  const consent = record?.informedConsent;
+  const consentUrl = consentHref(consent?.url);
+
   return (
     <Dialog.Root open={Boolean(record)} onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
@@ -30,9 +48,9 @@ function HistoryDetailDialog({ record, patientName, onClose }) {
             <>
               <div className="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
                 <div>
-                  <Dialog.Title className="text-xl font-bold text-foreground">{record.title}</Dialog.Title>
+                  <Dialog.Title className="text-xl font-bold text-foreground">{recordTitle(record)}</Dialog.Title>
                   <Dialog.Description className="mt-1 text-sm text-muted-foreground">
-                    {patientName} · {record.date}
+                    {[patientName, record.date || record.visitDate, record.bookingCode].filter(Boolean).join(' · ')}
                   </Dialog.Description>
                 </div>
                 <Dialog.Close className="rounded-md p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
@@ -41,37 +59,35 @@ function HistoryDetailDialog({ record, patientName, onClose }) {
                 </Dialog.Close>
               </div>
 
-              <div className="space-y-6 overflow-y-auto px-6 py-5">
-                <div className="space-y-4">
-                  <HistoryField label="Keluhan Utama" value={record.chiefComplaint} />
-                  <HistoryField label="Riwayat Penyakit Sekarang" value={record.presentIllness} />
-                  <HistoryField label="Riwayat Penyakit Dahulu" value={record.pastHistory} />
-                  <HistoryField label="Tindakan" value={record.treatment} />
-                  <HistoryField label="Catatan" value={record.notes} />
-                </div>
+              <div className="space-y-4 overflow-y-auto px-6 py-5">
+                <HistoryField label="Waktu Kunjungan" value={record.visitDate} />
+                <HistoryField label="S — Subjective" value={record.subjective} />
+                <HistoryField label="O — Objective" value={record.objective} />
+                <HistoryField label="A — Assessment" value={record.assessment} />
+                <HistoryField label="P — Plan" value={record.plan} />
+                <HistoryField label="Pemeriksaan Penunjang" value={record.supportingExamination} />
+                <HistoryField label="Evidence Based Practice" value={record.evidenceBasedPractice} />
+                <HistoryField label="Catatan Tambahan" value={record.additionalNotes} />
 
-                <div className="grid gap-6 sm:grid-cols-2">
+                {consent?.name || consent?.url ? (
                   <div>
-                    <p className="mb-2 text-sm text-muted-foreground">Obat yang Dikonsumsi</p>
-                    <ul className="space-y-2">
-                      {record.medications.map((item) => (
-                        <li key={item} className="rounded-lg bg-secondary/30 px-4 py-3 text-foreground">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
+                    <p className="mb-2 text-sm text-muted-foreground">Inform Consent</p>
+                    {consentUrl ? (
+                      <a
+                        href={consentUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-medium text-primary underline"
+                      >
+                        {consent.name || 'Lihat dokumen'}
+                      </a>
+                    ) : (
+                      <div className="rounded-lg bg-secondary/30 p-4 text-foreground">
+                        {consent.name || consent.url}
+                      </div>
+                    )}
                   </div>
-                  <div>
-                    <p className="mb-2 text-sm text-muted-foreground">Alergi</p>
-                    <ul className="space-y-2">
-                      {record.allergies.map((item) => (
-                        <li key={item} className="rounded-lg bg-secondary/30 px-4 py-3 text-foreground">
-                          {item}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
+                ) : null}
               </div>
             </>
           )}
@@ -84,11 +100,56 @@ function HistoryDetailDialog({ record, patientName, onClose }) {
 export default function MedicalHistoryPage() {
   const navigate = useNavigate();
   const { id: bookingId } = useParams();
-  const { getBookingById } = useBooking();
+  const { getBookingById, upsertBooking } = useBooking();
+  const { order, loading, error, getOrderDetail } = useGetOrderDetail();
   const [selectedRecord, setSelectedRecord] = useState(null);
+  const upsertRef = useRef(upsertBooking);
+  upsertRef.current = upsertBooking;
 
-  const booking = getBookingById(bookingId);
-  const records = getMedicalHistoryRecords(bookingId);
+  useEffect(() => {
+    let cancelled = false;
+
+    const load = async () => {
+      try {
+        const detail = await getOrderDetail(bookingId);
+        if (!cancelled) upsertRef.current(detail);
+      } catch {
+        // Pesan error ditampilkan dari hook.
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [bookingId, getOrderDetail]);
+
+  const booking = order || getBookingById(bookingId);
+  const records = order?.medicalRecords ?? booking?.medicalRecords ?? (loading || !error ? null : []);
+
+  const loadDetail = async () => {
+    try {
+      const detail = await getOrderDetail(bookingId);
+      upsertBooking(detail);
+    } catch {
+      // Pesan error ditampilkan dari hook.
+    }
+  };
+
+  if (!booking && (loading || !error)) {
+    return (
+      <ProtectedRoute>
+        <main className="min-h-screen bg-gradient-to-br from-background to-secondary/20 py-8">
+          <div className="mx-auto max-w-4xl px-4">
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground">Memuat riwayat medis...</p>
+            </Card>
+          </div>
+        </main>
+      </ProtectedRoute>
+    );
+  }
 
   if (!booking) {
     return (
@@ -102,6 +163,15 @@ export default function MedicalHistoryPage() {
               <ArrowLeft className="h-4 w-4" />
               Kembali
             </button>
+
+            {error && (
+              <div className="mb-6 flex flex-col gap-3 rounded-lg bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+                <p>{error}</p>
+                <Button type="button" variant="outline" size="sm" onClick={loadDetail} disabled={loading}>
+                  {loading ? 'Memuat...' : 'Muat ulang'}
+                </Button>
+              </div>
+            )}
 
             <Card className="p-12 text-center">
               <p className="text-muted-foreground">Orderan tidak ditemukan</p>
@@ -129,12 +199,25 @@ export default function MedicalHistoryPage() {
               <h1 className="mb-2 text-3xl font-bold text-foreground">Riwayat Medis</h1>
               <p className="text-muted-foreground">{booking.patientName}</p>
             </div>
-            <StatusBadge status={booking.status} />
+            <StatusBadge status={booking.status} label={booking.statusLabel} />
           </div>
 
           <OrderDetailTabs bookingId={booking.id} />
 
-          {records.length === 0 ? (
+          {error && (
+            <div className="mb-6 flex flex-col gap-3 rounded-lg bg-destructive/10 p-4 text-sm text-destructive sm:flex-row sm:items-center sm:justify-between">
+              <p>{error}</p>
+              <Button type="button" variant="outline" size="sm" onClick={loadDetail} disabled={loading}>
+                {loading ? 'Memuat...' : 'Muat ulang'}
+              </Button>
+            </div>
+          )}
+
+          {records == null ? (
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground">Memuat riwayat medis...</p>
+            </Card>
+          ) : records.length === 0 ? (
             <Card className="p-12 text-center">
               <p className="text-muted-foreground">Riwayat medis untuk pasien ini belum tersedia</p>
             </Card>
@@ -151,10 +234,13 @@ export default function MedicalHistoryPage() {
                     <div className="flex items-center gap-4">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-semibold text-foreground">{record.title}</p>
-                          <p className="text-sm text-muted-foreground">{record.date}</p>
+                          <p className="font-semibold text-foreground">{recordTitle(record)}</p>
+                          <p className="text-sm text-muted-foreground">{record.date || record.visitDate}</p>
                         </div>
-                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{record.summary}</p>
+                        {record.bookingCode && (
+                          <p className="mt-1 text-xs text-muted-foreground">{record.bookingCode}</p>
+                        )}
+                        <p className="mt-2 line-clamp-2 text-sm text-muted-foreground">{recordSummary(record)}</p>
                       </div>
                       <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" />
                     </div>

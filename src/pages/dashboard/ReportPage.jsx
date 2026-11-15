@@ -5,6 +5,21 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Download, Printer } from 'lucide-react';
 
+function formatVisitDateTime(value) {
+  if (!value) return '';
+  const normalized = String(value).trim().replace(' ', 'T');
+  const date = new Date(normalized);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('id-ID', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 export default function ReportPage() {
   const navigate = useNavigate();
   const { id: bookingId } = useParams();
@@ -51,6 +66,20 @@ export default function ReportPage() {
     month: 'long',
     day: 'numeric',
   });
+
+  const visitDateTime = report.visitDateTime || report.nextAppointment;
+  const visitLabel = formatVisitDateTime(visitDateTime);
+  const consent = report.informedConsent;
+  const sections = [
+    { title: 'Subjective', value: report.subjective || report.diagnosis },
+    { title: 'Objective', value: report.objective },
+    { title: 'Assessment', value: report.assessment },
+    { title: 'Plan', value: report.plan || report.treatment },
+    { title: 'Pemeriksaan Penunjang', value: report.supportingExamination },
+    { title: 'Evidence Based Practice', value: report.evidenceBasedPractice },
+    { title: 'Rekomendasi', value: report.recommendations },
+    { title: 'Catatan Tambahan', value: report.additionalNotes || report.notes },
+  ].filter((section) => section.value);
 
   return (
     <ProtectedRoute>
@@ -108,42 +137,33 @@ export default function ReportPage() {
               </div>
             </div>
 
-            <div className="mb-8 pb-8 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Diagnosis</h2>
-              <div className="p-4 rounded-lg bg-secondary/30 text-foreground whitespace-pre-wrap">
-                {report.diagnosis}
-              </div>
-            </div>
-
-            <div className="mb-8 pb-8 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground mb-4">Tindakan/Terapi</h2>
-              <div className="p-4 rounded-lg bg-secondary/30 text-foreground whitespace-pre-wrap">
-                {report.treatment}
-              </div>
-            </div>
-
-            {report.recommendations && (
-              <div className="mb-8 pb-8 border-b border-border">
-                <h2 className="text-lg font-semibold text-foreground mb-4">Rekomendasi</h2>
+            {sections.map((section) => (
+              <div key={section.title} className="mb-8 pb-8 border-b border-border">
+                <h2 className="text-lg font-semibold text-foreground mb-4">{section.title}</h2>
                 <div className="p-4 rounded-lg bg-secondary/30 text-foreground whitespace-pre-wrap">
-                  {report.recommendations}
+                  {section.value}
                 </div>
+              </div>
+            ))}
+
+            {consent?.url && (
+              <div className="mb-8 pb-8 border-b border-border">
+                <h2 className="text-lg font-semibold text-foreground mb-4">Inform Consent</h2>
+                <a
+                  href={consent.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="font-medium text-primary underline"
+                >
+                  {consent.name || 'Lihat dokumen'}
+                </a>
               </div>
             )}
 
-            {report.nextAppointment && (
+            {visitLabel && (
               <div className="mb-8">
                 <h2 className="text-lg font-semibold text-foreground mb-4">Waktu Kunjungan</h2>
-                <p className="font-medium text-foreground">
-                  {new Date(report.nextAppointment).toLocaleDateString('id-ID', {
-                    weekday: 'long',
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
-                </p>
+                <p className="font-medium text-foreground">{visitLabel}</p>
               </div>
             )}
 

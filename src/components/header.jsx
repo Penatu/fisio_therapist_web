@@ -1,11 +1,13 @@
 import { useAuth } from '@/lib/auth-context';
+import { useNotifications } from '@/lib/notifications';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogOut, Menu, X } from 'lucide-react';
+import { Bell, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { user, logout } = useAuth();
+  const { unreadCount } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const pathname = location.pathname;
@@ -66,6 +68,26 @@ export function Header() {
               <img src={user.profilePicture} alt="Profile" className="h-8 w-8 rounded-full" />
             )}
           </div>
+
+          <Link
+            to="/dashboard/notifications"
+            className={`relative inline-flex rounded-lg p-2 transition-colors ${
+              pathname.startsWith('/dashboard/notifications')
+                ? 'bg-secondary text-primary'
+                : 'text-muted-foreground hover:bg-secondary hover:text-foreground'
+            }`}
+            title="Notifikasi"
+            aria-label={
+              unreadCount > 0 ? `Notifikasi, ${unreadCount} belum dibaca` : 'Notifikasi'
+            }
+          >
+            <Bell className="h-5 w-5" />
+            {unreadCount > 0 && (
+              <span className="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold leading-none text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
+            )}
+          </Link>
 
           <button
             onClick={handleLogout}

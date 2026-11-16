@@ -4,8 +4,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { AlertCircle, Eye, EyeOff, Info } from 'lucide-react';
-import { TEST_ACCOUNT } from '@/lib/test-data';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -112,17 +111,6 @@ export default function LoginPage() {
               Daftar
             </Link>
           </p>
-
-          <div className="mt-6 p-4 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800">
-            <div className="flex gap-2 items-start">
-              <Info className="h-4 w-4 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" />
-              <div className="text-xs text-blue-900 dark:text-blue-100">
-                <p className="font-semibold mb-1">Demo Account:</p>
-                <p>Email: {TEST_ACCOUNT.email}</p>
-                <p>Password: {TEST_ACCOUNT.password}</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

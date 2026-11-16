@@ -2,20 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const ChatContext = createContext(undefined);
 
-const MOCK_CHAT_ROOMS = [
-  {
-    id: 'chat-1',
-    bookingId: '1',
-    patientId: 'patient-1',
-    patientName: 'Andi Wijaya',
-    patientImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&h=400&fit=crop',
-    lastMessage: 'Baik, sampai nanti jam 2',
-    lastMessageTime: '14:25',
-    unreadCount: 0,
-    status: 'processing',
-  },
-];
-
 export function ChatProvider({ children }) {
   const [chatRooms, setChatRooms] = useState([]);
   const [messages, setMessages] = useState(new Map());
@@ -23,10 +9,12 @@ export function ChatProvider({ children }) {
   useEffect(() => {
     const storedRooms = localStorage.getItem('chatRooms');
     if (storedRooms) {
-      setChatRooms(JSON.parse(storedRooms));
-    } else {
-      setChatRooms(MOCK_CHAT_ROOMS);
-      localStorage.setItem('chatRooms', JSON.stringify(MOCK_CHAT_ROOMS));
+      try {
+        const rooms = JSON.parse(storedRooms);
+        if (Array.isArray(rooms)) setChatRooms(rooms);
+      } catch {
+        setChatRooms([]);
+      }
     }
 
     const storedMessages = localStorage.getItem('chatMessages');

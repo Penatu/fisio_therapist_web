@@ -2,53 +2,7 @@ import { useSyncExternalStore } from "react";
 
 const STORAGE_KEY = "therapist-notification-reads";
 
-export const NOTIFICATIONS = [
-  {
-    id: "new-order",
-    type: "booking",
-    title: "Orderan baru masuk",
-    body: "Pasien baru mengajukan booking fisioterapi. Konfirmasi sebelum jadwal terlewat.",
-    time: "5 menit lalu",
-    unread: true,
-    href: "/dashboard/orders",
-  },
-  {
-    id: "chat-message",
-    type: "chat",
-    title: "Pesan baru dari pasien",
-    body: "Ada pesan di chat orderan yang sedang diproses.",
-    time: "1 jam lalu",
-    unread: true,
-    href: "/dashboard/chat",
-  },
-  {
-    id: "payment-received",
-    type: "payment",
-    title: "Pembayaran masuk",
-    body: "Pembayaran sesi terbaru sudah tercatat di laporan pembayaran.",
-    time: "Kemarin",
-    unread: true,
-    href: "/dashboard/payments",
-  },
-  {
-    id: "schedule-reminder",
-    type: "reminder",
-    title: "Pengingat jadwal praktek",
-    body: "Periksa tanggal praktek bulan ini agar pasien bisa melakukan booking.",
-    time: "2 hari lalu",
-    unread: false,
-    href: "/dashboard/settings/schedule",
-  },
-  {
-    id: "order-finished",
-    type: "booking",
-    title: "Sesi selesai",
-    body: "Laporan kunjungan terakhir sudah tersimpan di daftar orderan.",
-    time: "3 hari lalu",
-    unread: false,
-    href: "/dashboard/orders",
-  },
-];
+export const NOTIFICATIONS = [];
 
 function loadReadIds() {
   try {

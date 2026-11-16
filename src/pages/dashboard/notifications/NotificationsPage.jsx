@@ -58,9 +58,11 @@ export default function NotificationsPage() {
             <div>
               <h1 className="text-3xl font-bold text-foreground mb-2">Notifikasi</h1>
               <p className="text-muted-foreground">
-                {unreadCount > 0
-                  ? `${unreadCount} belum dibaca`
-                  : 'Semua notifikasi sudah dibaca'}
+                {notifications.length === 0
+                  ? 'Belum ada notifikasi'
+                  : unreadCount > 0
+                    ? `${unreadCount} belum dibaca`
+                    : 'Semua notifikasi sudah dibaca'}
               </p>
             </div>
             {unreadCount > 0 && (

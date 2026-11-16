@@ -1,5 +1,5 @@
 import { useBooking } from "@/lib/booking-context";
-import { isOrderPaid } from "./hooks/useGetOrderList";
+import { isOrderPaid } from "../hooks/useGetOrderList";
 import { useNavigate, useParams } from "react-router-dom";
 import { ProtectedRoute } from "@/components/protected-route";
 import { Card } from "@/components/ui/card";
@@ -8,8 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ArrowLeft, CheckCircle2, Upload, FileText, X } from "lucide-react";
 import { useState, useRef } from "react";
-import useUploadReportConsent from "./hooks/useUploadReportConsent";
-import useFinishOrder, { buildFinishPayload } from "./hooks/useFinishOrder";
+import useUploadReportConsent from "../hooks/useUploadReportConsent";
+import useFinishOrder, { buildFinishPayload } from "../hooks/useFinishOrder";
 
 export default function CreateReportPage() {
   const navigate = useNavigate();
@@ -115,7 +115,9 @@ export default function CreateReportPage() {
       setLoading(true);
       setSubmitError("");
 
-      const informedConsent = informConsentFile ? await uploadConsent(informConsentFile) : null;
+      const informedConsent = informConsentFile
+        ? await uploadConsent(informConsentFile)
+        : null;
       const payload = buildFinishPayload({ formData, informedConsent });
       await finishOrder(booking.id, payload);
 
@@ -130,7 +132,7 @@ export default function CreateReportPage() {
       });
 
       updateBooking(bookingId, {
-        status: "completed",
+        status: "finished",
         statusLabel: "Selesai",
         reportId,
       });
@@ -302,7 +304,10 @@ export default function CreateReportPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="supportingExamination" className="text-foreground font-medium">
+                  <Label
+                    htmlFor="supportingExamination"
+                    className="text-foreground font-medium"
+                  >
                     Pemeriksaan Penunjang
                   </Label>
                   <textarea
@@ -315,7 +320,10 @@ export default function CreateReportPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="evidenceBasedPractice" className="text-foreground font-medium">
+                  <Label
+                    htmlFor="evidenceBasedPractice"
+                    className="text-foreground font-medium"
+                  >
                     Evidence Based Practice
                   </Label>
                   <textarea

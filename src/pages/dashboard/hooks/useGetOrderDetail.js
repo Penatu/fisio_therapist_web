@@ -72,7 +72,13 @@ export function mapOrderDetail(result, code) {
   const item = data.booking || data.order || data.detail || data;
   if (!item || typeof item !== 'object' || Array.isArray(item)) return null;
 
-  const mapped = mapOrder(item, 0);
+  const mapped = mapOrder(
+    {
+      ...item,
+      patientPhoto: item.patientPhoto || item.patient?.patientPhoto || data.patientPhoto,
+    },
+    0,
+  );
   return {
     ...mapped,
     id: mapped.id && mapped.id !== 'order-0' ? mapped.id : code,

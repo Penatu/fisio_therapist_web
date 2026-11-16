@@ -16,11 +16,24 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "@/hooks/use-toast";
-import useGetOrderDetail from "./hooks/useGetOrderDetail";
-import useCancelOrder from "./hooks/useCancelOrder";
-import useConfirmOrder from "./hooks/useConfirmOrder";
-import useVisitOrder from "./hooks/useVisitOrder";
-import { isOrderPaid } from "./hooks/useGetOrderList";
+import useGetOrderDetail from "../hooks/useGetOrderDetail";
+import useCancelOrder from "../hooks/useCancelOrder";
+import useConfirmOrder from "../hooks/useConfirmOrder";
+import useVisitOrder from "../hooks/useVisitOrder";
+import { isOrderPaid } from "../hooks/useGetOrderList";
+
+function nameInitials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "?";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
 
 export default function OrderDetailPage() {
   const navigate = useNavigate();
@@ -177,7 +190,7 @@ export default function OrderDetailPage() {
     }
   };
 
-  const canCancel = !["completed", "cancelled", "canceled"].includes(
+  const canCancel = !["finished", "cancelled", "canceled"].includes(
     booking.status,
   );
 
@@ -234,11 +247,17 @@ export default function OrderDetailPage() {
 
           <Card className="p-8 mb-6">
             <div className="flex gap-6 items-start">
-              <img
-                src={booking.patientImage || "/placeholder.png"}
-                alt={booking.patientName}
-                className="h-24 w-24 rounded-full object-cover flex-shrink-0"
-              />
+              {booking.patientImage ? (
+                <img
+                  src={booking.patientImage}
+                  alt={booking.patientName || "Pasien"}
+                  className="h-24 w-24 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="flex h-24 w-24 flex-shrink-0 items-center justify-center rounded-full bg-primary text-2xl font-bold text-primary-foreground">
+                  {nameInitials(booking.patientName)}
+                </div>
+              )}
               <div className="flex-1">
                 <h2 className="text-2xl font-bold text-foreground mb-1">
                   {booking.patientName}
@@ -526,7 +545,7 @@ export default function OrderDetailPage() {
               </>
             )}
 
-            {booking.status === "completed" && booking.reportId && (
+            {booking.status === "finished" && booking.reportId && (
               <Link
                 to={`/dashboard/orders/${bookingId}/report`}
                 className="flex-1"

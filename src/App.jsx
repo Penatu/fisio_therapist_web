@@ -8,21 +8,21 @@ import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import VerifyOtpPage from '@/pages/auth/VerifyOtpPage';
 
-import OrdersPage from '@/pages/dashboard/OrdersPage';
-import OrderDetailPage from '@/pages/dashboard/OrderDetailPage';
-import MedicalHistoryPage from '@/pages/dashboard/MedicalHistoryPage';
-import CreateReportPage from '@/pages/dashboard/CreateReportPage';
-import ReportPage from '@/pages/dashboard/ReportPage';
-import ChatPage from '@/pages/dashboard/ChatPage';
-import ChatRoomPage from '@/pages/dashboard/ChatRoomPage';
-import PaymentsPage from '@/pages/dashboard/PaymentsPage';
-import MonthlyPaymentDetailPage from '@/pages/dashboard/MonthlyPaymentDetailPage';
-import NotificationsPage from '@/pages/dashboard/NotificationsPage';
-import SettingsPage from '@/pages/dashboard/SettingsPage';
-import ProfilePage from '@/pages/dashboard/ProfilePage';
-import PracticeSchedulePage from '@/pages/dashboard/PracticeSchedulePage';
-import VerificationPage from '@/pages/dashboard/VerificationPage';
-import CompleteProfilePage from '@/pages/dashboard/CompleteProfilePage';
+import OrdersPage from '@/pages/dashboard/orders/OrdersPage';
+import OrderDetailPage from '@/pages/dashboard/orders/OrderDetailPage';
+import MedicalHistoryPage from '@/pages/dashboard/orders/MedicalHistoryPage';
+import CreateReportPage from '@/pages/dashboard/orders/CreateReportPage';
+import ReportPage from '@/pages/dashboard/orders/ReportPage';
+import ChatPage from '@/pages/dashboard/chat/ChatPage';
+import ChatRoomPage from '@/pages/dashboard/chat/ChatRoomPage';
+import PaymentsPage from '@/pages/dashboard/payments/PaymentsPage';
+import MonthlyPaymentDetailPage from '@/pages/dashboard/payments/MonthlyPaymentDetailPage';
+import NotificationsPage from '@/pages/dashboard/notifications/NotificationsPage';
+import SettingsPage from '@/pages/dashboard/settings/SettingsPage';
+import ProfilePage from '@/pages/dashboard/settings/ProfilePage';
+import PracticeSchedulePage from '@/pages/dashboard/settings/PracticeSchedulePage';
+import VerificationPage from '@/pages/dashboard/settings/VerificationPage';
+import CompleteProfilePage from '@/pages/dashboard/settings/CompleteProfilePage';
 
 function HomeRedirect() {
   const { user, isAuthenticated, isLoading } = useAuth();

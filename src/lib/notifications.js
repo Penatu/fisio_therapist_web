@@ -1,52 +1,52 @@
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore } from "react";
 
-const STORAGE_KEY = 'therapist-notification-reads';
+const STORAGE_KEY = "therapist-notification-reads";
 
 export const NOTIFICATIONS = [
   {
-    id: 'new-order',
-    type: 'booking',
-    title: 'Orderan baru masuk',
-    body: 'Pasien baru mengajukan booking fisioterapi. Konfirmasi sebelum jadwal terlewat.',
-    time: '5 menit lalu',
+    id: "new-order",
+    type: "booking",
+    title: "Orderan baru masuk",
+    body: "Pasien baru mengajukan booking fisioterapi. Konfirmasi sebelum jadwal terlewat.",
+    time: "5 menit lalu",
     unread: true,
-    href: '/dashboard/orders',
+    href: "/dashboard/orders",
   },
   {
-    id: 'chat-message',
-    type: 'chat',
-    title: 'Pesan baru dari pasien',
-    body: 'Ada pesan di chat orderan yang sedang diproses.',
-    time: '1 jam lalu',
+    id: "chat-message",
+    type: "chat",
+    title: "Pesan baru dari pasien",
+    body: "Ada pesan di chat orderan yang sedang diproses.",
+    time: "1 jam lalu",
     unread: true,
-    href: '/dashboard/chat',
+    href: "/dashboard/chat",
   },
   {
-    id: 'payment-received',
-    type: 'payment',
-    title: 'Pembayaran masuk',
-    body: 'Pembayaran sesi terbaru sudah tercatat di laporan pembayaran.',
-    time: 'Kemarin',
+    id: "payment-received",
+    type: "payment",
+    title: "Pembayaran masuk",
+    body: "Pembayaran sesi terbaru sudah tercatat di laporan pembayaran.",
+    time: "Kemarin",
     unread: true,
-    href: '/dashboard/payments',
+    href: "/dashboard/payments",
   },
   {
-    id: 'schedule-reminder',
-    type: 'reminder',
-    title: 'Pengingat jadwal praktek',
-    body: 'Periksa tanggal praktek bulan ini agar pasien bisa melakukan booking.',
-    time: '2 hari lalu',
+    id: "schedule-reminder",
+    type: "reminder",
+    title: "Pengingat jadwal praktek",
+    body: "Periksa tanggal praktek bulan ini agar pasien bisa melakukan booking.",
+    time: "2 hari lalu",
     unread: false,
-    href: '/dashboard/settings/schedule',
+    href: "/dashboard/settings/schedule",
   },
   {
-    id: 'order-completed',
-    type: 'booking',
-    title: 'Sesi selesai',
-    body: 'Laporan kunjungan terakhir sudah tersimpan di daftar orderan.',
-    time: '3 hari lalu',
+    id: "order-finished",
+    type: "booking",
+    title: "Sesi selesai",
+    body: "Laporan kunjungan terakhir sudah tersimpan di daftar orderan.",
+    time: "3 hari lalu",
     unread: false,
-    href: '/dashboard/orders',
+    href: "/dashboard/orders",
   },
 ];
 
@@ -54,13 +54,17 @@ function loadReadIds() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     const parsed = raw ? JSON.parse(raw) : [];
-    return new Set(Array.isArray(parsed) ? parsed.filter((id) => typeof id === 'string') : []);
+    return new Set(
+      Array.isArray(parsed)
+        ? parsed.filter((id) => typeof id === "string")
+        : [],
+    );
   } catch {
     return new Set();
   }
 }
 
-let readIds = typeof localStorage === 'undefined' ? new Set() : loadReadIds();
+let readIds = typeof localStorage === "undefined" ? new Set() : loadReadIds();
 const listeners = new Set();
 const serverSnapshot = new Set();
 

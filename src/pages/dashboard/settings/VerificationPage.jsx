@@ -16,8 +16,8 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import useVerifyUserProfile from "./hooks/useVerifyUserProfile";
-import useUploadFile from "./hooks/useUploadFile";
+import useVerifyUserProfile from "../hooks/useVerifyUserProfile";
+import useUploadFile from "../hooks/useUploadFile";
 
 const createId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID

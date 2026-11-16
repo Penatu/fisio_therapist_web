@@ -1,6 +1,7 @@
 import { ProtectedRoute } from '@/components/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { Card } from '@/components/ui/card';
+import useGetOnboardingStatus from '@/pages/dashboard/hooks/useGetOnboardingStatus';
 import { ArrowLeft, CalendarDays, ChevronRight, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
@@ -22,7 +23,9 @@ const links = [
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { status, loading: statusLoading, error: statusError, isVerified } = useGetOnboardingStatus();
   const scheduleCount = Array.isArray(user?.practiceSchedule) ? user.practiceSchedule.length : 0;
+  const scheduleLocked = !isVerified;
 
   return (
     <ProtectedRoute>
@@ -44,12 +47,35 @@ export default function SettingsPage() {
           <div className="space-y-4">
             {links.map((item) => {
               const Icon = item.icon;
-              const detail =
-                item.href.endsWith('/schedule')
-                  ? scheduleCount > 0
-                    ? `${scheduleCount} hari praktek tersimpan`
-                    : 'Belum ada tanggal praktek'
-                  : user?.fullName || user?.name || 'Lengkapi data profil Anda';
+              const isSchedule = item.href.endsWith('/schedule');
+              const detail = isSchedule
+                ? statusLoading
+                  ? 'Memeriksa status verifikasi...'
+                  : statusError
+                    ? statusError
+                    : scheduleLocked
+                      ? 'Bisa diatur setelah akun terverifikasi'
+                      : status?.isHavingActiveSchedule
+                        ? 'Jadwal praktek aktif'
+                        : scheduleCount > 0
+                          ? `${scheduleCount} hari praktek tersimpan`
+                          : 'Belum ada jadwal praktek'
+                : user?.fullName || user?.name || 'Lengkapi data profil Anda';
+
+              if (isSchedule && (statusLoading || statusError || scheduleLocked)) {
+                return (
+                  <Card key={item.href} className="flex-row items-center gap-4 p-5 opacity-80">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-base font-semibold text-foreground">{item.title}</h2>
+                      <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                      <p className="mt-2 text-xs font-medium text-muted-foreground">{detail}</p>
+                    </div>
+                  </Card>
+                );
+              }
 
               return (
                 <Link

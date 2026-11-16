@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/status-badge';
 import { ArrowLeft, ChevronRight, X } from 'lucide-react';
 import * as Dialog from '@radix-ui/react-dialog';
-import useGetOrderDetail from './hooks/useGetOrderDetail';
+import useGetOrderDetail from '../hooks/useGetOrderDetail';
 
 function HistoryField({ label, value }) {
   if (!value) return null;

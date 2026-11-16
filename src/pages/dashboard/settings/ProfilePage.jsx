@@ -19,9 +19,9 @@ import {
   X,
 } from "lucide-react";
 import * as Dialog from "@radix-ui/react-dialog";
-import useUploadFile from "./hooks/useUploadFile";
-import useGetUserProfile from "./hooks/useGetUserProfile";
-import { buildOnboardingPayload } from "./hooks/useVerifyUserProfile";
+import useUploadFile from "../hooks/useUploadFile";
+import useGetUserProfile from "../hooks/useGetUserProfile";
+import { buildOnboardingPayload } from "../hooks/useVerifyUserProfile";
 
 const createId = () =>
   typeof crypto !== "undefined" && crypto.randomUUID

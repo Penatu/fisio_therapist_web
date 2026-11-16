@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card';
 import { ArrowLeft, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import usePracticeSchedule from './hooks/usePracticeSchedule';
+import usePracticeSchedule from '../hooks/usePracticeSchedule';
+import useGetOnboardingStatus from '../hooks/useGetOnboardingStatus';
 
 const MONTHS = [
   'Januari',
@@ -43,6 +44,12 @@ export default function PracticeSchedulePage() {
   const { user, isLoading, updateProfile } = useAuth();
   const { getPracticeSchedule, savePracticeSchedule, loading: scheduleLoading, error: loadError } =
     usePracticeSchedule();
+  const {
+    loading: statusLoading,
+    error: statusError,
+    isVerified,
+    reload: reloadStatus,
+  } = useGetOnboardingStatus();
   const navigate = useNavigate();
   const today = useMemo(() => new Date(), []);
   const [cursor, setCursor] = useState({
@@ -80,7 +87,7 @@ export default function PracticeSchedulePage() {
   };
 
   useEffect(() => {
-    if (isLoading) return undefined;
+    if (isLoading || statusLoading || !isVerified) return undefined;
 
     let cancelled = false;
 
@@ -108,7 +115,7 @@ export default function PracticeSchedulePage() {
     return () => {
       cancelled = true;
     };
-  }, [getPracticeSchedule, isLoading]);
+  }, [getPracticeSchedule, isLoading, isVerified, statusLoading]);
 
   const dirty = savedDates.join('|') !== dates.join('|');
   const prefix = monthPrefix(cursor.year, cursor.month);
@@ -187,11 +194,58 @@ export default function PracticeSchedulePage() {
   const isCurrentMonth =
     cursor.year === today.getFullYear() && cursor.month === today.getMonth();
 
+  if (isLoading || statusLoading) {
+    return (
+      <ProtectedRoute>
+        <div className="flex h-screen items-center justify-center">
+          <p className="text-muted-foreground">Memuat...</p>
+        </div>
+      </ProtectedRoute>
+    );
+  }
+
+  if (statusError || !isVerified) {
+    return (
+      <ProtectedRoute>
+        <main className="min-h-screen bg-gradient-to-br from-background to-secondary/20 py-8">
+          <div className="mx-auto max-w-xl px-4">
+            <button
+              onClick={() => navigate('/dashboard/settings')}
+              className="mb-6 inline-flex items-center gap-2 text-sm text-primary hover:text-primary/80 transition-colors"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Kembali ke pengaturan
+            </button>
+            <Card className="p-8 text-center">
+              <p className="text-base font-semibold text-foreground">
+                {statusError ? 'Status verifikasi belum bisa dimuat' : 'Jadwal praktek belum bisa diatur'}
+              </p>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {statusError || 'Atur jadwal praktek hanya tersedia setelah akun terverifikasi.'}
+              </p>
+              <div className="mt-6 flex justify-center gap-3">
+                {statusError ? (
+                  <Button type="button" variant="outline" onClick={reloadStatus}>
+                    Muat ulang
+                  </Button>
+                ) : (
+                  <Button type="button" onClick={() => navigate('/dashboard/verification')}>
+                    Ajukan Verifikasi
+                  </Button>
+                )}
+              </div>
+            </Card>
+          </div>
+        </main>
+      </ProtectedRoute>
+    );
+  }
+
   if (!hydrated) {
     return (
       <ProtectedRoute>
         <div className="flex h-screen items-center justify-center">
-          <p className="text-muted-foreground">{isLoading ? 'Memuat...' : 'Memuat jadwal...'}</p>
+          <p className="text-muted-foreground">Memuat jadwal...</p>
         </div>
       </ProtectedRoute>
     );

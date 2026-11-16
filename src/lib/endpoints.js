@@ -19,4 +19,6 @@ export const API_ENDPOINTS = {
   FINISH_ORDER: `${API_URL}/booking/finish/:code`,
   GET_CHAT_ROOM: `${API_URL}/therapist/booking/chat-room`,
   GET_CHAT_HISTORY: `${API_URL}/chat/history`,
+  GET_ONBOARDING_STATUS: `${API_URL}/therapist/onboarding/status`,
+  GET_PAYROLL_LIST: `${API_URL}/reports/payroll/therapist-payroll/:therapistCode`,
 };

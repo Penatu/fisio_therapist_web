@@ -13,18 +13,30 @@ import {
   AlertCircle,
   XCircle,
   HelpCircle,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import useGetOrderList, { isOrderPaid } from "./hooks/useGetOrderList";
-import useConfirmOrder from "./hooks/useConfirmOrder";
+import useGetOrderList, { isOrderPaid } from "../hooks/useGetOrderList";
+import useConfirmOrder from "../hooks/useConfirmOrder";
+import useGetOnboardingStatus from "../hooks/useGetOnboardingStatus";
+
+const ORDER_SUMMARY = [
+  { key: "totalBookings", label: "Total Orderan" },
+  { key: "new", label: "Orderan Baru" },
+  { key: "confirmed", label: "Di Konfirmasi" },
+  { key: "visit", label: "Proses Visit" },
+  { key: "finished", label: "Selesai" },
+  { key: "canceled", label: "Dibatalkan" },
+];
 
 const ORDER_FILTERS = [
   { value: "all", label: "Semua", query: "" },
   { value: "new", label: "Orderan Baru", query: "new" },
   { value: "confirmed", label: "Di Konfirmasi", query: "confirmed" },
   { value: "processing", label: "Proses Visit", query: "visit" },
-  { value: "completed", label: "Selesai", query: "completed" },
+  { value: "finished", label: "Selesai", query: "finished" },
   { value: "cancelled", label: "Dibatalkan", query: "canceled" },
 ];
 
@@ -32,10 +44,24 @@ function statusQueryFor(filter) {
   return ORDER_FILTERS.find((item) => item.value === filter)?.query || "";
 }
 
+function nameInitials(name) {
+  const parts = String(name || "")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!parts.length) return "?";
+  return parts
+    .slice(0, 2)
+    .map((part) => part[0])
+    .join("")
+    .toUpperCase();
+}
+
 export default function OrdersPage() {
   const navigate = useNavigate();
-  const { replaceBookings, upsertBooking } = useBooking();
-  const { orders, loading, error, getOrderList } = useGetOrderList();
+  const { upsertBooking } = useBooking();
+  const { orders, summary, pagination, loading, error, getOrderList } =
+    useGetOrderList();
   const {
     confirmOrder,
     loading: confirming,
@@ -43,29 +69,34 @@ export default function OrdersPage() {
     clearError: clearConfirmError,
   } = useConfirmOrder();
   const [filter, setFilter] = useState("all");
+  const [page, setPage] = useState(1);
   const [confirmingId, setConfirmingId] = useState("");
   const [confirmNote, setConfirmNote] = useState("");
   const [reportErrorId, setReportErrorId] = useState("");
-  const [statsSource, setStatsSource] = useState([]);
+  const {
+    status: onboardingStatus,
+    loading: statusLoading,
+    error: statusError,
+    reload: reloadStatus,
+  } = useGetOnboardingStatus();
 
-  const syncBookings = (list, query) => {
-    if (!query) {
-      replaceBookings(list);
-      setStatsSource(list);
-      return;
-    }
-
+  const syncBookings = (list) => {
     list.forEach((item) => upsertBooking(item));
   };
 
-  const loadOrders = async (nextFilter = filter) => {
+  const loadOrders = async (nextFilter = filter, nextPage = page) => {
     try {
       const query = statusQueryFor(nextFilter);
-      const list = await getOrderList(query);
-      syncBookings(list, query);
+      const list = await getOrderList({ status: query, page: nextPage });
+      syncBookings(list);
     } catch {
       // Pesan error ditampilkan dari hook.
     }
+  };
+
+  const changeFilter = (value) => {
+    setFilter(value);
+    setPage(1);
   };
 
   const openConfirm = (id) => {
@@ -96,13 +127,8 @@ export default function OrdersPage() {
 
     const load = async () => {
       try {
-        const list = await getOrderList(query);
+        const list = await getOrderList({ status: query, page });
         if (cancelled) return;
-        if (!query) {
-          replaceBookings(list);
-          setStatsSource(list);
-          return;
-        }
         list.forEach((item) => upsertBooking(item));
       } catch {
         // Pesan error ditampilkan dari hook.
@@ -114,65 +140,100 @@ export default function OrdersPage() {
     return () => {
       cancelled = true;
     };
-  }, [filter, getOrderList, replaceBookings, upsertBooking]);
+  }, [filter, page, getOrderList, upsertBooking]);
 
-  const verificationStatus = "not_submitted";
+  const verificationStatus = onboardingStatus?.verificationStatus || "";
+  const hasActiveSchedule = onboardingStatus?.isHavingActiveSchedule === true;
 
   const getVerificationStatusDisplay = () => {
-    switch (verificationStatus) {
-      case "not_submitted":
-        return {
-          text: "Belum Mengajukan",
-          icon: HelpCircle,
-          color: "text-muted-foreground",
-          bgColor: "bg-secondary/50",
-        };
-      case "in_process":
-        return {
-          text: "Dalam Proses",
-          icon: Clock,
-          color: "text-blue-600",
-          bgColor: "bg-blue-50 dark:bg-blue-950",
-        };
-      case "pending":
-        return {
-          text: "Pending",
-          icon: AlertCircle,
-          color: "text-yellow-600",
-          bgColor: "bg-yellow-50 dark:bg-yellow-950",
-        };
-      case "rejected":
-        return {
-          text: "Ditolak",
-          icon: XCircle,
-          color: "text-red-600",
-          bgColor: "bg-red-50 dark:bg-red-950",
-        };
-      case "approved":
-        return {
-          text: "Terverifikasi",
-          icon: ShieldCheck,
-          color: "text-green-600",
-          bgColor: "bg-green-50 dark:bg-green-950",
-        };
-      default:
-        return {
-          text: "Belum Mengajukan",
-          icon: HelpCircle,
-          color: "text-muted-foreground",
-          bgColor: "bg-secondary/50",
-        };
+    if (statusLoading) {
+      return {
+        text: "Memuat status verifikasi...",
+        icon: Clock,
+        color: "text-muted-foreground",
+        bgColor: "bg-secondary/50",
+        action: null,
+      };
     }
+
+    if (statusError) {
+      return {
+        text: statusError,
+        icon: AlertCircle,
+        color: "text-destructive",
+        bgColor: "bg-destructive/10",
+        action: { label: "Muat ulang", onClick: reloadStatus },
+      };
+    }
+
+    if (verificationStatus === "verified" && hasActiveSchedule) {
+      return {
+        text: "Anda sudah terverifikasi dan sudah memiliki jadwal praktek aktif.",
+        icon: ShieldCheck,
+        color: "text-green-600",
+        bgColor: "bg-green-50 dark:bg-green-950",
+        action: null,
+      };
+    }
+
+    if (verificationStatus === "verified") {
+      return {
+        text: "Anda sudah terverifikasi, namun belum ada jadwal praktek.",
+        icon: CheckCircle2,
+        color: "text-green-600",
+        bgColor: "bg-green-50 dark:bg-green-950",
+        action: {
+          label: "Setting sekarang",
+          to: "/dashboard/settings/schedule",
+        },
+      };
+    }
+
+    if (verificationStatus === "pending") {
+      return {
+        text: "Form verifikasi Anda sedang di-review.",
+        icon: Clock,
+        color: "text-yellow-600",
+        bgColor: "bg-yellow-50 dark:bg-yellow-950",
+        action: null,
+      };
+    }
+
+    if (verificationStatus === "rejected") {
+      return {
+        text: "Verifikasi data Anda belum bisa diterima. Perbaharui lalu ajukan kembali.",
+        detail: onboardingStatus?.rejectionReason || "",
+        icon: XCircle,
+        color: "text-red-600",
+        bgColor: "bg-red-50 dark:bg-red-950",
+        action: { label: "Edit Profil", to: "/dashboard/settings/profile" },
+      };
+    }
+
+    return {
+      text: "Anda belum terverifikasi. Harap lengkapi data.",
+      icon: HelpCircle,
+      color: "text-muted-foreground",
+      bgColor: "bg-secondary/50",
+      action: { label: "Ajukan Verifikasi", to: "/dashboard/verification" },
+    };
   };
 
   const statusDisplay = getVerificationStatusDisplay();
   const StatusIcon = statusDisplay.icon;
 
-  const stats = {
-    new: statsSource.filter((b) => b.status === "new").length,
-    processing: statsSource.filter((b) => b.status === "processing").length,
-    completed: statsSource.filter((b) => b.status === "completed").length,
-  };
+  const totalPages = Math.max(
+    1,
+    Math.ceil(pagination.total / pagination.perPage) || 1,
+  );
+  const rangeStart =
+    pagination.total === 0
+      ? 0
+      : (pagination.currentPage - 1) * pagination.perPage + 1;
+  const rangeEnd = Math.min(
+    pagination.currentPage * pagination.perPage,
+    pagination.total,
+  );
 
   return (
     <ProtectedRoute>
@@ -190,9 +251,11 @@ export default function OrdersPage() {
           <Card
             className={`p-4 mb-8 ${statusDisplay.bgColor} border-2 transition-all`}
           >
-            <div className="flex items-center justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
-                <StatusIcon className={`h-6 w-6 ${statusDisplay.color}`} />
+                <StatusIcon
+                  className={`h-6 w-6 shrink-0 ${statusDisplay.color}`}
+                />
                 <div>
                   <p className="text-sm text-muted-foreground font-medium">
                     Status Verifikasi
@@ -202,44 +265,41 @@ export default function OrdersPage() {
                   >
                     {statusDisplay.text}
                   </p>
+                  {statusDisplay.detail ? (
+                    <p className="mt-1 text-sm text-foreground">
+                      Alasan penolakan: {statusDisplay.detail}
+                    </p>
+                  ) : null}
                 </div>
               </div>
-              <Link to="/dashboard/verification">
+              {statusDisplay.action?.to ? (
+                <Link to={statusDisplay.action.to}>
+                  <Button className="whitespace-nowrap">
+                    {statusDisplay.action.label}
+                  </Button>
+                </Link>
+              ) : statusDisplay.action?.onClick ? (
                 <Button
-                  variant={
-                    verificationStatus === "not_submitted"
-                      ? "default"
-                      : "outline"
-                  }
+                  type="button"
+                  variant="outline"
                   className="whitespace-nowrap"
+                  onClick={statusDisplay.action.onClick}
                 >
-                  {verificationStatus === "not_submitted"
-                    ? "Ajukan Verifikasi"
-                    : "Lihat Detail"}
+                  {statusDisplay.action.label}
                 </Button>
-              </Link>
+              ) : null}
             </div>
           </Card>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Orderan Baru</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {stats.new}
-              </p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Proses Visit</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {stats.processing}
-              </p>
-            </Card>
-            <Card className="p-4">
-              <p className="text-sm text-muted-foreground">Selesai</p>
-              <p className="text-2xl font-bold text-foreground mt-1">
-                {stats.completed}
-              </p>
-            </Card>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+            {ORDER_SUMMARY.map((item) => (
+              <Card key={item.key} className="p-4">
+                <p className="text-sm text-muted-foreground">{item.label}</p>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {summary[item.key] ?? 0}
+                </p>
+              </Card>
+            ))}
           </div>
 
           {error && (
@@ -261,7 +321,7 @@ export default function OrdersPage() {
             {ORDER_FILTERS.map((item) => (
               <Button
                 key={item.value}
-                onClick={() => setFilter(item.value)}
+                onClick={() => changeFilter(item.value)}
                 variant={filter === item.value ? "default" : "outline"}
                 className="whitespace-nowrap"
               >
@@ -283,11 +343,17 @@ export default function OrdersPage() {
                 >
                   <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex gap-4 flex-1">
-                      <img
-                        src={booking.patientImage || "/placeholder.png"}
-                        alt={booking.patientName}
-                        className="h-14 w-14 rounded-full object-cover flex-shrink-0"
-                      />
+                      {booking.patientImage ? (
+                        <img
+                          src={booking.patientImage}
+                          alt={booking.patientName || "Pasien"}
+                          className="h-14 w-14 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                          {nameInitials(booking.patientName)}
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start gap-3 flex-wrap">
                           <div>
@@ -351,7 +417,7 @@ export default function OrdersPage() {
                           </Button>
                         )}
 
-                      {booking.status === "completed" && booking.reportId && (
+                      {booking.status === "finished" && booking.reportId && (
                         <Link to={`/dashboard/orders/${booking.id}/report`}>
                           <Button
                             variant="outline"
@@ -464,6 +530,40 @@ export default function OrdersPage() {
               </Card>
             )}
           </div>
+
+          {pagination.total > 0 && (
+            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                Menampilkan {rangeStart}–{rangeEnd} dari {pagination.total}{" "}
+                orderan
+              </p>
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loading || pagination.previousPage < 1}
+                  onClick={() => setPage(pagination.previousPage)}
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                  Sebelumnya
+                </Button>
+                <span className="min-w-16 text-center text-sm font-medium text-foreground">
+                  {pagination.currentPage}/{totalPages}
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={loading || pagination.nextPage < 1}
+                  onClick={() => setPage(pagination.nextPage)}
+                >
+                  Berikutnya
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
     </ProtectedRoute>

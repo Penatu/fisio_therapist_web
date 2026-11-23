@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { AlertCircle, ArrowLeft } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import useVerifyOtp from './hooks/useVerifyOtp';
+import logo from '@/assets/myfisio_logo.jpeg';
 
 export default function VerifyOtpPage() {
   const navigate = useNavigate();
@@ -94,9 +95,7 @@ export default function VerifyOtpPage() {
           </button>
 
           <div className="mb-8 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold mb-4">
-              P
-            </div>
+            <img src={logo} alt="My Fisio" className="mx-auto mb-4 h-14 w-auto object-contain" />
             <h1 className="text-2xl font-bold text-foreground">Verifikasi OTP</h1>
             <p className="mt-2 text-sm text-muted-foreground">
               Kami telah mengirim kode ke{' '}

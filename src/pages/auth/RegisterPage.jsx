@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react';
 import useRegister from './hooks/useRegerister';
+import logo from '@/assets/myfisio_logo.jpeg';
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -56,10 +57,8 @@ export default function RegisterPage() {
       <div className="w-full max-w-md">
         <div className="bg-card rounded-2xl border border-border p-8 shadow-lg">
           <div className="mb-8 text-center">
-            <div className="inline-flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold mb-4">
-              P
-            </div>
-            <h1 className="text-2xl font-bold text-foreground">PhysioApp</h1>
+            <img src={logo} alt="My Fisio" className="mx-auto mb-4 h-14 w-auto object-contain" />
+            <h1 className="sr-only">My Fisio</h1>
             <p className="mt-2 text-sm text-muted-foreground">Daftar sebagai Fisioterapis</p>
           </div>
 

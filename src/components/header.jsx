@@ -4,6 +4,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Bell, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import logo from '@/assets/myfisio_logo.jpeg';
 
 export function Header() {
   const { user, logout } = useAuth();
@@ -34,12 +35,9 @@ export function Header() {
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-background">
       <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary text-primary-foreground font-bold">
-            P
-          </div>
-          <span className="hidden font-bold text-foreground sm:inline">PhysioApp</span>
-        </div>
+        <Link to="/dashboard/orders" className="flex shrink-0 items-center">
+          <img src={logo} alt="My Fisio" className="h-10 w-auto object-contain" />
+        </Link>
 
         <nav className="hidden gap-6 md:flex">
           {navItems.map((item) => (

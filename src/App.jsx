@@ -1,8 +1,10 @@
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/lib/auth-context';
 import { Header } from '@/components/header';
+import { NotificationProvider } from '@/lib/notification-context';
 import { Toaster } from '@/components/ui/toaster';
-import { useEffect } from 'react';
+import { toast } from '@/hooks/use-toast';
+import { useEffect, useRef } from 'react';
 
 import LoginPage from '@/pages/auth/LoginPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
@@ -21,6 +23,7 @@ import NotificationsPage from '@/pages/dashboard/notifications/NotificationsPage
 import SettingsPage from '@/pages/dashboard/settings/SettingsPage';
 import ProfilePage from '@/pages/dashboard/settings/ProfilePage';
 import PracticeSchedulePage from '@/pages/dashboard/settings/PracticeSchedulePage';
+import ServiceSettingsPage from '@/pages/dashboard/settings/ServiceSettingsPage';
 import VerificationPage from '@/pages/dashboard/settings/VerificationPage';
 import CompleteProfilePage from '@/pages/dashboard/settings/CompleteProfilePage';
 
@@ -52,6 +55,28 @@ function HomeRedirect() {
   );
 }
 
+function SessionExpiredListener() {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
+  const logoutRef = useRef(logout);
+  logoutRef.current = logout;
+
+  useEffect(() => {
+    const onSessionExpired = (event) => {
+      logoutRef.current();
+      toast({
+        title: event.detail?.message || 'Sesi habis, silahkan login ulang',
+      });
+      navigate('/auth/login', { replace: true });
+    };
+
+    window.addEventListener('session-expired', onSessionExpired);
+    return () => window.removeEventListener('session-expired', onSessionExpired);
+  }, [navigate]);
+
+  return null;
+}
+
 function AppLayout() {
   return (
     <>
@@ -70,10 +95,11 @@ function AppLayout() {
         <Route path="/dashboard/chat/room/:id" element={<ChatRoomPage />} />
         <Route path="/dashboard/notifications" element={<NotificationsPage />} />
         <Route path="/dashboard/payments" element={<PaymentsPage />} />
-        <Route path="/dashboard/payments/:month" element={<MonthlyPaymentDetailPage />} />
+        <Route path="/dashboard/payments/:payrollCode" element={<MonthlyPaymentDetailPage />} />
         <Route path="/dashboard/settings" element={<SettingsPage />} />
         <Route path="/dashboard/settings/profile" element={<ProfilePage />} />
         <Route path="/dashboard/settings/schedule" element={<PracticeSchedulePage />} />
+        <Route path="/dashboard/settings/service" element={<ServiceSettingsPage />} />
         <Route path="/dashboard/verification" element={<VerificationPage />} />
         <Route path="/dashboard/complete-profile" element={<CompleteProfilePage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
@@ -85,8 +111,11 @@ function AppLayout() {
 export default function App() {
   return (
     <BrowserRouter>
-      <AppLayout />
-      <Toaster />
+      <NotificationProvider>
+        <SessionExpiredListener />
+        <AppLayout />
+        <Toaster />
+      </NotificationProvider>
     </BrowserRouter>
   );
 }

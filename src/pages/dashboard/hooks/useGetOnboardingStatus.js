@@ -29,16 +29,47 @@ function textValue(value) {
   return '';
 }
 
-export function mapOnboardingStatus(result) {
-  const data = result?.data && typeof result.data === 'object' ? result.data : {};
-  const raw = String(data.verificationStatus || '')
-    .trim()
-    .toLowerCase();
+function unwrapStatus(result) {
+  if (!result || typeof result !== 'object') return {};
+
+  const data = result.data;
+  if (
+    data &&
+    typeof data === 'object' &&
+    !Array.isArray(data) &&
+    (data.verificationStatus != null || data.isHavingActiveSchedule != null || data.isHavingService != null)
+  ) {
+    return data;
+  }
+
+  if (result.verificationStatus != null || result.isHavingActiveSchedule != null || result.isHavingService != null) {
+    return result;
+  }
+
+  return {};
+}
+
+function readVerification(value) {
+  if (value && typeof value === 'object') {
+    return {
+      name: String(value.name || value.status || '').trim().toLowerCase(),
+      note: textValue(value.note),
+    };
+  }
 
   return {
-    verificationStatus: STATUSES.includes(raw) ? raw : raw || 'unverified',
-    isHavingActiveSchedule: data.isHavingActiveSchedule === true,
-    rejectionReason: textValue(
+    name: String(value || '').trim().toLowerCase(),
+    note: '',
+  };
+}
+
+export function mapOnboardingStatus(result) {
+  const data = unwrapStatus(result);
+  const verification = readVerification(data.verificationStatus);
+  const raw = verification.name;
+  const note =
+    verification.note ||
+    textValue(
       data.rejectionReason ||
         data.rejectReason ||
         data.rejectedReason ||
@@ -46,7 +77,14 @@ export function mapOnboardingStatus(result) {
         data.rejectionNote ||
         data.rejectNote ||
         data.note,
-    ),
+    );
+
+  return {
+    verificationStatus: STATUSES.includes(raw) ? raw : raw || 'unverified',
+    verificationNote: note,
+    isHavingActiveSchedule: data.isHavingActiveSchedule === true,
+    isHavingService: data.isHavingService === true,
+    rejectionReason: note,
   };
 }
 

@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useAuth } from '@/lib/auth-context';
 import { API_ENDPOINTS } from '@/lib/endpoints';
 
 function getErrorMessage(result, fallback) {
@@ -44,10 +43,62 @@ function countNumber(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+const MONTHS = {
+  jan: 0,
+  january: 0,
+  januari: 0,
+  feb: 1,
+  february: 1,
+  februari: 1,
+  mar: 2,
+  march: 2,
+  maret: 2,
+  apr: 3,
+  april: 3,
+  may: 4,
+  mei: 4,
+  jun: 5,
+  june: 5,
+  juni: 5,
+  jul: 6,
+  july: 6,
+  juli: 6,
+  aug: 7,
+  august: 7,
+  agu: 7,
+  agustus: 7,
+  sep: 8,
+  sept: 8,
+  september: 8,
+  oct: 9,
+  october: 9,
+  okt: 9,
+  oktober: 9,
+  nov: 10,
+  november: 10,
+  dec: 11,
+  december: 11,
+  des: 11,
+  desember: 11,
+};
+
 function parseDate(value) {
   const text = textValue(value);
   if (!text) return null;
-  const date = /^\d{4}-\d{2}-\d{2}/.test(text) ? new Date(`${text.slice(0, 10)}T00:00:00`) : new Date(text);
+  if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+    const date = new Date(`${text.slice(0, 10)}T00:00:00`);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const named = text.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if (named) {
+    const month = MONTHS[named[2].toLowerCase()];
+    if (month == null) return null;
+    const date = new Date(Number(named[3]), month, Number(named[1]));
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  const date = new Date(text);
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
@@ -77,6 +128,8 @@ function extractRows(data) {
   const list =
     data.list ||
     data.payrolls ||
+    data.paidPayrolls ||
+    data.payrollList ||
     data.payments ||
     data.items ||
     data.rows ||
@@ -87,10 +140,10 @@ function extractRows(data) {
 }
 
 function monthTitle(item) {
-  const named = textValue(item.monthLabel || item.monthName || item.periodLabel);
+  const named = textValue(item.payslipCode || item.monthLabel || item.monthName || item.periodLabel);
   if (named && !/^\d{4}-\d{2}/.test(named)) return named;
-  const start = item.periodStart || item.month || item.period || item.date || item.paymentDate;
-  return formatMonth(start) || textValue(item.patient || item.patientName || item.description || item.name) || 'Pembayaran';
+  const start = item.periodStart || item.month || item.period || item.paidAt || item.date || item.paymentDate;
+  return formatMonth(start) || textValue(item.payslipCode || item.payrollCode || item.patient || item.patientName) || 'Pembayaran';
 }
 
 function mapHistory(list) {
@@ -98,38 +151,52 @@ function mapHistory(list) {
   return list
     .filter((item) => item && typeof item === 'object')
     .map((item, index) => ({
-      id: textValue(item.id || item.code || item.payrollCode) || `history-${index}`,
-      date: formatDate(item.date || item.paymentDate || item.paidAt || item.lastPayment),
-      description: textValue(item.description || item.patient || item.patientName || item.service) || 'Pembayaran',
-      amount: amountNumber(item.amount ?? item.totalPayout ?? item.payout ?? item.totalAmount),
-      status: statusLabel(item.status || item.paymentStatus) || 'Berhasil',
+      id: textValue(item.bookCode || item.bookingCode || item.id || item.code || item.payrollCode) || `history-${index}`,
+      bookCode: textValue(item.bookCode || item.bookingCode),
+      date: formatDate(item.bookingDate || item.date || item.paymentDate || item.paidAt || item.lastPayment),
+      description:
+        textValue(item.patientName || item.patient || item.description || item.serviceName || item.service || item.bookCode) ||
+        'Pembayaran',
+      amount: amountNumber(item.amount ?? item.amountPaid ?? item.totalPayout ?? item.payout ?? item.totalAmount),
+      status: statusLabel(item.status || item.paymentStatus),
     }));
 }
 
 export function mapPayrollItem(item, index) {
-  const start = item?.periodStart || item?.month || item?.period || item?.date;
+  const start = item?.periodStart || item?.month || item?.period || item?.paidAt || item?.date;
+  const payrollCode = textValue(item?.payslipCode || item?.payrollCode || item?.code || item?.id || start);
   return {
-    id: textValue(item?.id || item?.code || item?.payrollCode || start) || `payroll-${index}`,
+    id: payrollCode || `payroll-${index}`,
+    payrollCode: payrollCode || `payroll-${index}`,
+    payslipCode: textValue(item?.payslipCode || item?.payrollCode || payrollCode),
     month: monthTitle(item || {}),
-    totalAmount: amountNumber(item?.totalPayout ?? item?.totalAmount ?? item?.amount ?? item?.paid ?? item?.payout),
-    servicesCount: countNumber(item?.totalSessions ?? item?.servicesCount ?? item?.sessions ?? item?.paidSessions),
+    totalAmount: amountNumber(
+      item?.amountPaid ?? item?.totalPayout ?? item?.totalAmount ?? item?.amount ?? item?.paid ?? item?.payout,
+    ),
+    servicesCount: countNumber(
+      item?.totalSession ?? item?.totalSessions ?? item?.servicesCount ?? item?.sessions ?? item?.paidSessions,
+    ),
     status: statusLabel(item?.status) || 'Dibayar',
-    paymentDate: formatDate(item?.lastPayment || item?.paymentDate || item?.paidAt),
-    sortTime: parseDate(start || item?.lastPayment || item?.paymentDate)?.getTime() || 0,
-    paymentHistory: mapHistory(item?.paymentHistory || item?.payments || item?.details),
+    paymentDate: formatDate(item?.paidAt || item?.lastPayment || item?.paymentDate),
+    sortTime: parseDate(start || item?.paidAt || item?.lastPayment || item?.paymentDate)?.getTime() || 0,
+    paymentHistory: mapHistory(item?.booking || item?.bookings || item?.paymentHistory || item?.payments || item?.details),
   };
 }
 
 function looksLikePayroll(item) {
-  return ['totalPayout', 'totalAmount', 'periodStart', 'lastPayment', 'payrollCode'].some(
+  return ['totalPayout', 'totalAmount', 'amountPaid', 'periodStart', 'lastPayment', 'paidAt', 'payrollCode', 'payslipCode'].some(
     (key) => item?.[key] != null && item[key] !== '',
   );
 }
 
 function isCurrentMonth(item) {
   const now = new Date();
-  const date = parseDate(item?.periodStart || item?.month || item?.period || item?.date || item?.paymentDate || item?.lastPayment);
-  return Boolean(date && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth());
+  const date = item?.sortTime
+    ? new Date(item.sortTime)
+    : parseDate(item?.periodStart || item?.month || item?.period || item?.date || item?.paymentDate || item?.lastPayment);
+  return Boolean(
+    date && !Number.isNaN(date.getTime()) && date.getFullYear() === now.getFullYear() && date.getMonth() === now.getMonth(),
+  );
 }
 
 export function mapPayrollList(result) {
@@ -156,30 +223,47 @@ export function mapPayrollList(result) {
   };
 }
 
-export function therapistCodeFrom(user) {
-  const code = textValue(user?.code || user?.therapistCode);
-  if (code) return code;
-  const id = textValue(user?.id);
-  if (id && !id.includes('@')) return id;
-  return '';
+export function mapPayrollDetail(result, payrollCode) {
+  const data = result?.data && typeof result.data === 'object' ? result.data : result;
+  const source =
+    data?.payroll || data?.detail || data?.paidPayroll || (data && typeof data === 'object' && !Array.isArray(data) ? data : {});
+  const mapped = mapPayrollItem(
+    { ...source, payslipCode: source?.payslipCode || source?.payrollCode || payrollCode },
+    0,
+  );
+  const history = mapHistory(
+    source?.booking ||
+      source?.bookings ||
+      source?.paymentHistory ||
+      source?.payments ||
+      source?.details ||
+      source?.items ||
+      data?.booking ||
+      data?.bookings ||
+      data?.details ||
+      data?.items,
+  );
+
+  return {
+    ...mapped,
+    id: mapped.payrollCode || payrollCode,
+    payrollCode: mapped.payrollCode || payrollCode,
+    paymentHistory: history.length ? history : mapped.paymentHistory,
+  };
 }
 
-async function requestPayrollList(therapistCode, signal) {
+async function requestPayrollList(signal) {
   const token = localStorage.getItem('token');
   if (!token) throw new Error('Sesi login tidak ditemukan. Silakan login kembali.');
-  if (!therapistCode) throw new Error('Kode terapis tidak ditemukan.');
 
-  const response = await fetch(
-    API_ENDPOINTS.GET_PAYROLL_LIST.replace(':therapistCode', encodeURIComponent(therapistCode)),
-    {
-      method: 'GET',
-      headers: {
-        Accept: 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      signal,
+  const response = await fetch(API_ENDPOINTS.GET_PAYROLL_LIST, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+      Authorization: `Bearer ${token}`,
     },
-  );
+    signal,
+  });
 
   const result = await response.json().catch(() => null);
   const status = Number(result?.status);
@@ -201,8 +285,6 @@ const EMPTY_PAYROLL = {
 };
 
 const useGetPayrollList = () => {
-  const { user } = useAuth();
-  const therapistCode = therapistCodeFrom(user);
   const [report, setReport] = useState(EMPTY_PAYROLL);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -216,7 +298,7 @@ const useGetPayrollList = () => {
       setError('');
 
       try {
-        const next = await requestPayrollList(therapistCode, signal);
+        const next = await requestPayrollList(signal);
         if (signal?.aborted || requestId.current !== currentRequest) return null;
         setReport(next);
         return next;
@@ -232,7 +314,7 @@ const useGetPayrollList = () => {
         if (!signal?.aborted && requestId.current === currentRequest) setLoading(false);
       }
     },
-    [therapistCode],
+    [],
   );
 
   useEffect(() => {

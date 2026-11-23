@@ -116,8 +116,7 @@ export default function PaymentsPage() {
                 {payments.map((payment) => (
                   <Link
                     key={payment.id}
-                    to={`/dashboard/payments/${encodeURIComponent(payment.id)}`}
-                    state={{ payment }}
+                    to={`/dashboard/payments/${encodeURIComponent(payment.payrollCode || payment.id)}`}
                   >
                     <div className="flex items-center justify-between p-4 rounded-lg border border-border hover:bg-secondary/30 transition-all hover:border-primary/50 cursor-pointer group">
                       <div className="flex-1">

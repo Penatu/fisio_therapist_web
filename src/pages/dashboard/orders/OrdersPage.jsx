@@ -178,7 +178,7 @@ export default function OrdersPage() {
 
     if (verificationStatus === "verified") {
       return {
-        text: "Anda sudah terverifikasi, namun belum ada jadwal praktek.",
+        text: "Anda sudah terverifikasi, namun belum ada jadwal praktek aktif beberapa hari ke depan.",
         icon: CheckCircle2,
         color: "text-green-600",
         bgColor: "bg-green-50 dark:bg-green-950",
@@ -202,7 +202,10 @@ export default function OrdersPage() {
     if (verificationStatus === "rejected") {
       return {
         text: "Verifikasi data Anda belum bisa diterima. Perbaharui lalu ajukan kembali.",
-        detail: onboardingStatus?.rejectionReason || "",
+        detail:
+          onboardingStatus?.verificationNote ||
+          onboardingStatus?.rejectionReason ||
+          "",
         icon: XCircle,
         color: "text-red-600",
         bgColor: "bg-red-50 dark:bg-red-950",

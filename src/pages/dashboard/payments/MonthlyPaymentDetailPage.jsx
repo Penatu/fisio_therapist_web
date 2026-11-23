@@ -1,6 +1,8 @@
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { ProtectedRoute } from "@/components/protected-route";
+import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import useGetPayrollDetail from "../hooks/useGetPayrollDetail";
 import { ArrowLeft, Calendar, DollarSign, TrendingUp } from "lucide-react";
 
 function money(value) {
@@ -9,8 +11,8 @@ function money(value) {
 
 export default function MonthlyPaymentDetailPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const payment = location.state?.payment;
+  const { payrollCode = "" } = useParams();
+  const { payment, loading, error, reload } = useGetPayrollDetail(payrollCode);
 
   return (
     <ProtectedRoute>
@@ -24,7 +26,18 @@ export default function MonthlyPaymentDetailPage() {
             Kembali
           </button>
 
-          {!payment ? (
+          {loading ? (
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground">Memuat detail pembayaran...</p>
+            </Card>
+          ) : error ? (
+            <Card className="flex flex-col items-center gap-4 p-8 text-center">
+              <p className="text-sm text-destructive">{error}</p>
+              <Button type="button" variant="outline" size="sm" onClick={reload}>
+                Muat ulang
+              </Button>
+            </Card>
+          ) : !payment ? (
             <Card className="p-12 text-center">
               <p className="text-muted-foreground">Data pembayaran tidak ditemukan</p>
             </Card>
@@ -35,9 +48,11 @@ export default function MonthlyPaymentDetailPage() {
                   <div className="rounded-lg bg-primary/10 p-2">
                     <Calendar className="h-6 w-6 text-primary" />
                   </div>
-                  <h1 className="text-3xl font-bold text-foreground">{payment.month}</h1>
+                  <h1 className="text-3xl font-bold text-foreground">{payment.payslipCode || payment.month}</h1>
                 </div>
-                <p className="text-muted-foreground">Laporan pembayaran detail untuk bulan ini</p>
+                <p className="text-muted-foreground">
+                  {payment.paymentDate ? `Dibayar ${payment.paymentDate}` : "Detail pembayaran"}
+                </p>
               </div>
 
               <div className="space-y-6">
@@ -48,7 +63,7 @@ export default function MonthlyPaymentDetailPage() {
                         <p className="text-sm text-muted-foreground">Total Penghasilan</p>
                         <p className="text-3xl font-bold text-foreground mt-2">{money(payment.totalAmount)}</p>
                         <p className="text-xs text-muted-foreground mt-2">
-                          Dari {payment.servicesCount || 0} layanan selesai
+                          Dari {payment.servicesCount || 0} sesi
                         </p>
                       </div>
                       <div className="rounded-lg bg-green-100 dark:bg-green-950 p-3">
@@ -60,7 +75,7 @@ export default function MonthlyPaymentDetailPage() {
                   <Card className="p-6">
                     <div className="flex items-start justify-between">
                       <div>
-                        <p className="text-sm text-muted-foreground">Layanan Selesai</p>
+                        <p className="text-sm text-muted-foreground">Total Sesi</p>
                         <p className="text-3xl font-bold text-foreground mt-2">{payment.servicesCount || 0}</p>
                         <p className="text-xs text-muted-foreground mt-2">
                           {payment.paymentDate ? `Dibayar ${payment.paymentDate}` : "Belum ada tanggal pembayaran"}
@@ -74,7 +89,7 @@ export default function MonthlyPaymentDetailPage() {
                 </div>
 
                 <Card className="p-6">
-                  <h3 className="text-lg font-semibold text-foreground mb-4">Riwayat Pembayaran</h3>
+                  <h3 className="text-lg font-semibold text-foreground mb-4">Booking</h3>
                   {payment.paymentHistory?.length ? (
                     <div className="space-y-3">
                       {payment.paymentHistory.map((item) => (
@@ -84,13 +99,17 @@ export default function MonthlyPaymentDetailPage() {
                         >
                           <div className="flex-1">
                             <p className="font-medium text-foreground">{item.description}</p>
-                            <p className="text-sm text-muted-foreground mt-1">{item.date}</p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {[item.bookCode, item.date].filter(Boolean).join(" · ")}
+                            </p>
                           </div>
                           <div className="text-right">
                             <p className="font-semibold text-foreground">{money(item.amount)}</p>
-                            <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300">
-                              {item.status}
-                            </span>
+                            {item.status ? (
+                              <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-950 text-green-700 dark:text-green-300">
+                                {item.status}
+                              </span>
+                            ) : null}
                           </div>
                         </div>
                       ))}

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/auth-context';
 import { API_ENDPOINTS, SOCKET_BASE_URL } from '@/lib/endpoints';
+import { handleSessionExpired } from '@/lib/session';
 
 function formatMessageTime(value) {
   const date = value ? new Date(value) : new Date();
@@ -49,7 +50,7 @@ function getErrorMessage(result, fallback) {
 }
 
 export function useChatSocket({ roomId, userRef, onRoomError }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const token = user?.token || localStorage.getItem('token') || '';
   const [messages, setMessages] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -59,12 +60,10 @@ export function useChatSocket({ roomId, userRef, onRoomError }) {
   const [connectionError, setConnectionError] = useState('');
 
   const socketRef = useRef(null);
-  const logoutRef = useRef(logout);
   const onRoomErrorRef = useRef(onRoomError);
   const loadHistoryRef = useRef(null);
   const messageSeq = useRef(0);
 
-  logoutRef.current = logout;
   onRoomErrorRef.current = onRoomError;
 
   const reloadHistory = useCallback(() => loadHistoryRef.current?.(), []);
@@ -186,7 +185,7 @@ export function useChatSocket({ roomId, userRef, onRoomError }) {
     socket.on('connect_error', (err) => {
       const detail = err?.data?.message || err?.message || 'Gagal terhubung ke chat';
       if (err?.data?.status === 401 && detail !== 'invalid userRef') {
-        logoutRef.current();
+        handleSessionExpired();
         return;
       }
       if (!active) return;

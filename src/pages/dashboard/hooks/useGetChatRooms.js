@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { useAuth } from '@/lib/auth-context';
 import { API_ENDPOINTS, SOCKET_BASE_URL } from '@/lib/endpoints';
+import { handleSessionExpired } from '@/lib/session';
 
 function getErrorMessage(result, fallback) {
   if (!result) return fallback;
@@ -188,7 +189,7 @@ async function requestChatRooms(signal) {
 const UNKNOWN_ROOM_REFETCH_MS = 3000;
 
 const useGetChatRooms = () => {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const token = user?.token || localStorage.getItem('token') || '';
   const [rooms, setRooms] = useState([]);
   const [yourChatRef, setYourChatRef] = useState('');
@@ -197,8 +198,6 @@ const useGetChatRooms = () => {
   const requestId = useRef(0);
   const roomsRef = useRef(rooms);
   const getChatRoomsRef = useRef(null);
-  const logoutRef = useRef(logout);
-  logoutRef.current = logout;
 
   const getChatRooms = useCallback(async (signal, { background = false } = {}) => {
     const currentRequest = requestId.current + 1;
@@ -322,7 +321,7 @@ const useGetChatRooms = () => {
     socket.on('connect_error', (err) => {
       const detail = err?.data?.message || err?.message || '';
       if (err?.data?.status === 401 && detail !== 'invalid userRef') {
-        logoutRef.current();
+        handleSessionExpired();
       }
     });
 

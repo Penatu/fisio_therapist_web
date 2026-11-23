@@ -2,7 +2,8 @@ import { ProtectedRoute } from '@/components/protected-route';
 import { useAuth } from '@/lib/auth-context';
 import { Card } from '@/components/ui/card';
 import useGetOnboardingStatus from '@/pages/dashboard/hooks/useGetOnboardingStatus';
-import { ArrowLeft, CalendarDays, ChevronRight, UserRound } from 'lucide-react';
+import useTherapistServices from '@/pages/dashboard/hooks/useTherapistServices';
+import { ArrowLeft, CalendarDays, ChevronRight, Stethoscope, UserRound } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 
 const links = [
@@ -18,12 +19,19 @@ const links = [
     description: 'Pilih tanggal di bulan tertentu saat Anda menerima pasien.',
     icon: CalendarDays,
   },
+  {
+    href: '/dashboard/settings/service',
+    title: 'Layanan',
+    description: 'Pilih satu layanan yang akan diaktifkan untuk pasien.',
+    icon: Stethoscope,
+  },
 ];
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { status, loading: statusLoading, error: statusError, isVerified } = useGetOnboardingStatus();
+  const { services, activeService, loading: serviceLoading, error: serviceError } = useTherapistServices();
   const scheduleCount = Array.isArray(user?.practiceSchedule) ? user.practiceSchedule.length : 0;
   const scheduleLocked = !isVerified;
 
@@ -41,13 +49,19 @@ export default function SettingsPage() {
 
           <div className="mb-8">
             <h1 className="text-3xl font-bold text-foreground mb-2">Pengaturan</h1>
-            <p className="text-muted-foreground">Kelola profil dan jadwal praktek Anda</p>
+            <p className="text-muted-foreground">Kelola profil, jadwal praktek, dan layanan Anda</p>
           </div>
 
           <div className="space-y-4">
             {links.map((item) => {
               const Icon = item.icon;
               const isSchedule = item.href.endsWith('/schedule');
+              const isService = item.href.endsWith('/service');
+              const activeName =
+                services.find((service) => String(service.id) === String(activeService?.id))?.name ||
+                activeService?.name;
+              const serviceStatus =
+                activeService?.flag === false ? `${activeName} · Masih proses` : activeName || 'Belum ada layanan aktif';
               const detail = isSchedule
                 ? statusLoading
                   ? 'Memeriksa status verifikasi...'
@@ -60,7 +74,13 @@ export default function SettingsPage() {
                         : scheduleCount > 0
                           ? `${scheduleCount} hari praktek tersimpan`
                           : 'Belum ada jadwal praktek'
-                : user?.fullName || user?.name || 'Lengkapi data profil Anda';
+                : isService
+                  ? serviceLoading
+                    ? 'Memeriksa layanan...'
+                    : serviceError
+                      ? serviceError
+                      : serviceStatus
+                  : user?.fullName || user?.name || 'Lengkapi data profil Anda';
 
               if (isSchedule && (statusLoading || statusError || scheduleLocked)) {
                 return (

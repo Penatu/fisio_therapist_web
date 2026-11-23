@@ -1,5 +1,5 @@
 import { useAuth } from '@/lib/auth-context';
-import { useNotifications } from '@/lib/notifications';
+import { useNotifications } from '@/lib/notification-context';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Bell, LogOut, Menu, X } from 'lucide-react';
 import { useState } from 'react';
